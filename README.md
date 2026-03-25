@@ -171,6 +171,45 @@ curl -X POST http://<IP>/reset
 {"error": "not_found", "path": "/unknown"}
 ```
 
+## Web UI
+
+別サーバーで静的 Web UI をホストできる。詳細は [web/README.md](web/README.md) を参照。
+
+```bash
+python3 -m http.server 8080 -d web/
+```
+
+## iOS ショートカット
+
+iOS のショートカットアプリから Pico W の API を直接呼び出せる。
+
+### 作成手順（電源ONの例）
+
+1. **ショートカット** アプリを開く
+2. **+** で新規ショートカット作成
+3. **アクションを追加** → **Web** → **URLの内容を取得** を選択
+4. 以下を設定:
+   - **URL**: `http://<Pico WのIP>/power/on`
+   - **方法**: `POST`
+5. 名前を「PC電源ON」などに変更して保存
+
+### 各操作のURL
+
+| 操作 | URL | メソッド |
+|------|-----|----------|
+| 電源ON | `http://<IP>/power/on` | POST |
+| 電源OFF | `http://<IP>/power/off` | POST |
+| 電源トグル | `http://<IP>/power/toggle` | POST |
+| リセット | `http://<IP>/reset` | POST |
+| 状態確認 | `http://<IP>/status` | GET |
+
+### Tips
+
+- ショートカットをホーム画面に追加すれば、アプリアイコンとしてワンタップで操作可能
+- Siri に「PC電源ON」と言って実行することも可能
+- ウィジェットに配置して通知センターからも操作可能
+- 同じWiFiネットワークに接続している必要がある
+
 ## 注意事項
 
 - パルス送信直後の `pc_power` は状態変化前の値の場合がある（数秒後に `/status` で再確認推奨）

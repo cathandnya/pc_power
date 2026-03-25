@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PC Remote Power</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .container {
+    width: 100%;
+    max-width: 400px;
+    padding: 20px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.4rem;
+    margin-bottom: 24px;
+    color: #ccc;
+  }
+
+  /* Connection */
+  .connect-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .connect-bar input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #333;
+    border-radius: 8px;
+    background: #16213e;
+    color: #eee;
+    font-size: 0.95rem;
+  }
+  .connect-bar input::placeholder { color: #666; }
+  .connect-bar button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #0f3460;
+    color: #eee;
+    cursor: pointer;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+  .connect-bar button:hover { background: #1a4a7a; }
+
+  /* Status */
+  .status-card {
+    background: #16213e;
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .status-indicator {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  .status-indicator.on { background: #4ade80; box-shadow: 0 0 12px #4ade80; }
+  .status-indicator.off { background: #666; }
+  .status-indicator.unknown { background: #f59e0b; }
+  .status-text {
+    font-size: 1.5rem;
+    font-weight: 600;
+    vertical-align: middle;
+  }
+  .status-sub {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: #888;
+  }
+
+  /* Buttons */
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .btn {
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .btn-on { background: #166534; color: #fff; }
+  .btn-on:hover:not(:disabled) { background: #15803d; }
+  .btn-off { background: #991b1b; color: #fff; }
+  .btn-off:hover:not(:disabled) { background: #b91c1c; }
+  .btn-reset { background: #92400e; color: #fff; }
+  .btn-reset:hover:not(:disabled) { background: #a16207; }
+
+  /* Error */
+  .error {
+    text-align: center;
+    color: #f87171;
+    font-size: 0.85rem;
+    margin-top: 12px;
+    min-height: 1.2em;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>PC Remote Power</h1>
+
+  <div class="connect-bar">
+    <input type="text" id="host" placeholder="Pico W IP (例: 192.168.1.100)">
+    <button onclick="connect()">接続</button>
+  </div>
+
+  <div class="status-card">
+    <span class="status-indicator unknown" id="indicator"></span>
+    <span class="status-text" id="statusText">未接続</span>
+    <div class="status-sub" id="statusSub"></div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-on" id="btnOn" onclick="sendCommand('/power/on')" disabled>Power ON</button>
+    <button class="btn btn-off" id="btnOff" onclick="sendCommand('/power/off')" disabled>Power OFF</button>
+    <button class="btn btn-reset" id="btnReset" onclick="sendCommand('/reset')" disabled>Reset</button>
+  </div>
+
+  <div class="error" id="error"></div>
+</div>
+
+<script>
+  let baseUrl = '';
+  let polling = null;
+
+  const $ = id => document.getElementById(id);
+
+  // Load saved host
+  const saved = localStorage.getItem('pico_host');
+  if (saved) {
+    $('host').value = saved;
+    connect();
+  }
+
+  function connect() {
+    const host = $('host').value.trim();
+    if (!host) return;
+
+    // Normalize: add http:// if missing, remove trailing slash
+    let url = host;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'http://' + url;
+    }
+    url = url.replace(/\/+$/, '');
+    baseUrl = url;
+
+    localStorage.setItem('pico_host', host);
+
+    // Start polling
+    if (polling) clearInterval(polling);
+    fetchStatus();
+    polling = setInterval(fetchStatus, 2000);
+  }
+
+  async function fetchStatus() {
+    if (!baseUrl) return;
+    try {
+      const res = await fetch(baseUrl + '/status', { signal: AbortSignal.timeout(3000) });
+      const data = await res.json();
+      updateUI(data);
+      $('error').textContent = '';
+    } catch (e) {
+      $('indicator').className = 'status-indicator unknown';
+      $('statusText').textContent = '接続エラー';
+      $('statusSub').textContent = '';
+      $('error').textContent = baseUrl + ' に接続できません';
+      setButtons(false);
+    }
+  }
+
+  function updateUI(data) {
+    const on = data.pc_power;
+    const busy = data.busy;
+
+    $('indicator').className = 'status-indicator ' + (on ? 'on' : 'off');
+    $('statusText').textContent = on ? 'ON' : 'OFF';
+    $('statusSub').textContent = busy ? '操作中...' : '';
+
+    setButtons(!busy);
+  }
+
+  function setButtons(enabled) {
+    $('btnOn').disabled = !enabled;
+    $('btnOff').disabled = !enabled;
+    $('btnReset').disabled = !enabled;
+  }
+
+  async function sendCommand(path) {
+    if (!baseUrl) return;
+    setButtons(false);
+    $('error').textContent = '';
+
+    try {
+      const res = await fetch(baseUrl + path, {
+        method: 'POST',
+        signal: AbortSignal.timeout(10000),
+      });
+      const data = await res.json();
+      updateUI(data);
+
+      // Wait and re-check status (state may not have changed yet)
+      setTimeout(fetchStatus, 3000);
+    } catch (e) {
+      $('error').textContent = '操作に失敗しました: ' + e.message;
+      setTimeout(fetchStatus, 1000);
+    }
+  }
+</script>
+
+</body>
+</html>

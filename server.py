@@ -36,6 +36,11 @@ class HTTPServer:
                 if line in (b"\r\n", b"\n", b""):
                     break
 
+            # CORS preflight
+            if method == "OPTIONS":
+                await self._send_cors_preflight(writer)
+                return
+
             handler = self._routes.get((method, path))
             if handler:
                 result = await handler()
@@ -58,10 +63,22 @@ class HTTPServer:
             "HTTP/1.1 {} {}\r\n"
             "Content-Type: application/json\r\n"
             "Content-Length: {}\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
             "Connection: close\r\n"
             "\r\n".format(status, status_text, len(body)).encode()
         )
         writer.write(body.encode())
+        await writer.drain()
+
+    async def _send_cors_preflight(self, writer):
+        writer.write(
+            "HTTP/1.1 204 No Content\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+            "Access-Control-Allow-Headers: Content-Type\r\n"
+            "Connection: close\r\n"
+            "\r\n".encode()
+        )
         await writer.drain()
 
     async def _handle_status(self):
