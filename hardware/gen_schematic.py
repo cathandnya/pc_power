@@ -113,4 +113,19 @@ with schemdraw.Drawing(file="/Users/nya/Documents/Development/pc_power/hardware/
         fontsize=9
     )
 
+# Add white background to SVG
+svg_path = "/Users/nya/Documents/Development/pc_power/hardware/schematic.svg"
+with open(svg_path, "r") as f:
+    svg = f.read()
+svg = svg.replace(
+    "<svg ",
+    '<svg style="background-color:white" ',
+    1,
+)
+# Insert a white rect right after the opening svg tag
+insert_pos = svg.index(">") + 1
+svg = svg[:insert_pos] + '<rect width="100%" height="100%" fill="white"/>' + svg[insert_pos:]
+with open(svg_path, "w") as f:
+    f.write(svg)
+
 print("Done: hardware/schematic.svg")
