@@ -86,3 +86,18 @@ async def websocket_endpoint(ws: WebSocket):
 @app.get("/")
 async def index():
     return FileResponse(WEB_DIR / "index.html")
+
+
+@app.get("/manifest.json")
+async def manifest():
+    return FileResponse(WEB_DIR / "manifest.json", media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+async def service_worker():
+    return FileResponse(WEB_DIR / "sw.js", media_type="application/javascript")
+
+
+@app.get("/icon.svg")
+async def icon():
+    return FileResponse(WEB_DIR / "icon.svg", media_type="image/svg+xml")
