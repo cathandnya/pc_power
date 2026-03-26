@@ -1,128 +1,124 @@
-# PC Remote Power Controller
+# PC Front Panel Wireless Bridge
 
-Raspberry Pi Pico W を使って、PCの電源をWiFi経由でリモート制御するデバイス。
+Raspberry Pi Zero W を使って、マザーボードのフロントパネルピンヘッダーを無線化するデバイス。
 
-REST APIで電源ON/OFF、リセット、ステータス確認が可能。物理電源ボタン・リセットボタンとの並列動作にも対応。
+PC電源のON/OFF/リセットをリモート操作し、電源状態・ディスクアクセス・ビープ音をWebSocketでリアルタイム配信する。Web UIとREST APIの両方に対応。
+
+## 機能
+
+| 機能 | 方向 | 方式 |
+|------|------|------|
+| 電源 ON/OFF | 制御 | REST API / Web UI |
+| リセット | 制御 | REST API / Web UI |
+| 電源状態 (PWR_LED) | 監視 | WebSocket リアルタイム |
+| ディスクアクセス (HDD_LED) | 監視 | WebSocket リアルタイム |
+| ビープ音 (SPEAKER) | 監視 | WebSocket リアルタイム |
 
 ## 部品リスト
 
-| 部品 | 数量 | 用途 | 備考 |
-|------|------|------|------|
-| Raspberry Pi Pico W | 1 | メインMCU | Pico WH（ヘッダー付き）でも可 |
-| USBケーブル (Micro-B) | 1 | Pico W給電 | PC電源と独立したUSB充電器に接続 |
-| デュポンケーブル（メス-メス）| 6本 | Pico W ↔ 基板 ↔ マザーボード | 2.54mmピッチ |
-| ピンヘッダー 2.54mm（オス）| 2x3組(6本) | 基板上の中継端子 | ケースのコネクタを差し込む用 |
-| ピンヘッダー 2.54mm | 必要分 | Pico Wへの配線用 | Pico WHなら不要 |
-| 抵抗 3.3kΩ | 1 | Power LED分圧（下側） | 1/4W |
-| 抵抗 6.8kΩ | 1 | Power LED分圧（上側） | 1/4W |
-| ユニバーサル基板（小型） | 1 | 中継ボード・分圧回路の実装 | 2.54mmピッチ穴あき基板。全配線をはんだ付け |
+| 部品 | 数量 | 用途 |
+|------|------|------|
+| Raspberry Pi Zero W | 1 | メインボード |
+| microSD カード | 1 | Raspberry Pi OS |
+| USB内部ケーブル | 1 | MB内部USBヘッダー → Zero W PWR端子 |
+| デュポンケーブル（メス-メス）| 10本 | Zero W ↔ 基板 ↔ マザーボード |
+| ピンヘッダー 2.54mm（オス）| 10本 | 基板上の中継端子 |
+| 抵抗 3.3kΩ | 2 | PWR_LED / HDD_LED 分圧（下側） |
+| 抵抗 6.8kΩ | 2 | PWR_LED / HDD_LED 分圧（上側） |
+| ユニバーサル基板（小型） | 1 | 中継ボード・分圧回路 |
+
+## GPIO 割り当て
+
+| GPIO | 方向 | 接続先 | 備考 |
+|------|------|--------|------|
+| GPIO17 | 出力 | PWR_SW ヘッダー | 通常Hi-Z、操作時LOW |
+| GPIO27 | 出力 | RST_SW ヘッダー | 通常Hi-Z、操作時LOW |
+| GPIO22 | 入力 | PWR_LED ヘッダー | 分圧抵抗経由 |
+| GPIO23 | 入力 | HDD_LED ヘッダー | 分圧抵抗経由 |
+| GPIO24 | 入力 | SPEAKER ヘッダー | |
 
 ## 回路図
 
 ![回路図](hardware/schematic.svg)
 
-- **Power Switch / Reset Switch**: 物理ボタンと並列接続。Pico W GPIO は通常 Hi-Z（切断状態）で、操作時のみ LOW を出力してスイッチ押下をシミュレート
-- **Power LED**: 分圧抵抗（6.8kΩ + 3.3kΩ）で 5V → 約1.65V に降圧し、GP18 で安全に読み取り
-- **パルス幅**: 電源ON = 500ms / 電源OFF = 5000ms / リセット = 500ms
+### 分圧回路（PWR_LED / HDD_LED 共通）
 
-> KiCad プロジェクトファイルは [hardware/](hardware/) ディレクトリにあります。
+マザーボードのLEDヘッダーは5V出力の場合があるため、分圧抵抗でGPIOを保護する。
+
+```
+LED+ (5V) ── 6.8kΩ ──┬── GPIO (≈1.65V)
+                      │
+                    3.3kΩ
+                      │
+                     GND
+```
 
 ## 配線
 
-### ユニバーサル基板中継ボードの構成
+### 接続図
 
-マザーボードのフロントパネルヘッダーは2ピンのため、ケースのボタンとPico Wのケーブルを同時に差せない。ユニバーサル基板を中継ボードとして使い、すべての配線をはんだ付けで集約する。
-
-基板にピンヘッダー（オス）をはんだ付けし、ケースのコネクタ（デュポン メス）を差し込めるようにする。
-
-```
-ユニバーサル基板上のレイアウト:
-
-  [PWR_SW 中継]
-  ピンヘッダー A1 ──── ピンヘッダー A2    ← ケースの電源ボタン (メスコネクタを差す)
-       │                    │
-       │                    │
-  MB PWR_SW+ へ        GND (共通)
-  (デュポンケーブル)
-       │
-  Pico GP16 へ
-  (デュポンケーブル)
-
-  [RST_SW 中継]  ※同様の構成
-
-  [PWR_LED 分圧回路]
-  MB PWR_LED+ ── 6.8kΩ ──┬── Pico GP18 へ
-                          │
-                        3.3kΩ
-                          │
-                         GND
-```
+![接続図](hardware/wiring.svg)
 
 ### 接続手順
 
-1. **基板を製作**: ユニバーサル基板にピンヘッダー（オス）を PWR_SW 用に2本、RST_SW 用に2本はんだ付けし、裏面で配線をはんだ付け
-2. **分圧回路を実装**: 同じ基板上に 6.8kΩ + 3.3kΩ の分圧回路をはんだ付け
-3. **ケースのボタンを接続**: ケースの電源ボタン・リセットボタンのコネクタ（メス）をピンヘッダーに差し込む
-4. **マザーボードと接続**: デュポンケーブル（メス-メス）で基板からマザーボードの PWR_SW / RST_SW / PWR_LED ヘッダーへ接続
-5. **Pico W と接続**: デュポンケーブルで基板から Pico W の GP16 / GP17 / GP18 / GND へ接続
-6. **Pico W を給電**: USB 充電器から Micro-B ケーブルで給電（PC電源と独立）
+1. **基板を製作**: ユニバーサル基板にピンヘッダーをはんだ付け（PWR_SW / RST_SW / HDD_LED 各2本、SPEAKER 2本）
+2. **分圧回路を実装**: PWR_LED用・HDD_LED用の分圧回路を基板上にはんだ付け
+3. **ケースのボタンを接続**: 電源ボタン・リセットボタンのコネクタをピンヘッダーに差し込む
+4. **マザーボードと接続**: デュポンケーブルで基板からマザーボードの各ヘッダーへ接続
+5. **Zero W と接続**: デュポンケーブルで基板から Zero W の各GPIOへ接続
+6. **Zero W を給電**: マザーボード内部USBヘッダーから Zero W の PWR端子（OTG側ではない方）に接続
+
+### 給電について
+
+マザーボード内部USBヘッダーから給電する。BIOSで **USB Standby Power** を有効にすれば、PCシャットダウン中もZero Wが動作し続ける。
+
+- BIOS設定例: 「USB Standby Power」「USB Power in S5」「ErP Ready → Disabled」
+- メーカーにより設定名が異なる
 
 ## セットアップ
 
-### 1. MicroPython のインストール
+### 1. Raspberry Pi OS のインストール
 
-1. [MicroPython公式サイト](https://micropython.org/download/RPI_PICO_W/)から Pico W 用の `.uf2` ファイルをダウンロード
-2. Pico W の BOOTSEL ボタンを押しながら USB 接続
-3. マウントされたドライブに `.uf2` ファイルをコピー
+1. [Raspberry Pi Imager](https://www.raspberrypi.com/software/) で microSD に Raspberry Pi OS Lite を書き込む
+2. Imager の設定で WiFi・SSH を有効化
+3. microSD を Zero W に挿入、USBで給電して起動
 
-### 2. WiFi 設定
+### 2. アプリのインストール
 
-`config.py` の以下の値を自分の環境に合わせて変更:
-
-```python
-WIFI_SSID = "YOUR_SSID"
-WIFI_PASSWORD = "YOUR_PASSWORD"
+```bash
+git clone https://github.com/cathandnya/pc_power.git
+cd pc_power
+./install.sh
 ```
 
-### 3. ファイル転送
+### 3. 動作確認
 
-Thonny 等の IDE で以下のファイルを Pico W に転送:
+ブラウザで `http://<Zero W の IP>:8080` にアクセス。
 
-- `main.py`
-- `config.py`
-- `power.py`
-- `wifi.py`
-- `server.py`
+## Web UI
 
-### 4. 動作確認
+Zero W 上で Web UI が直接ホストされる。別サーバー不要。
 
-1. Pico W を再起動（USBを抜き差し）
-2. 内蔵LEDが点灯すれば WiFi 接続成功
-3. シリアルコンソールで IP アドレスを確認
-4. `curl http://<IP>/status` で疎通確認
+- 電源状態・ディスクアクセス・ビープ音をリアルタイム表示
+- Power ON / Power OFF / Reset ボタン
+- WebSocket で自動更新（ポーリング不要）
 
-## API
-
-すべてのレスポンスは JSON 形式。
+## REST API
 
 ### GET /status
 
-PC の電源状態を取得。
-
 ```bash
-curl http://<IP>/status
+curl http://<IP>:8080/status
 ```
 
 ```json
-{"pc_power": true, "busy": false}
+{"pc_power": true, "hdd_active": false, "beep": false, "busy": false}
 ```
 
 ### POST /power/on
 
-電源 ON（500ms パルス）。既に ON なら何もしない。
-
 ```bash
-curl -X POST http://<IP>/power/on
+curl -X POST http://<IP>:8080/power/on
 ```
 
 ```json
@@ -131,90 +127,42 @@ curl -X POST http://<IP>/power/on
 
 ### POST /power/off
 
-電源 OFF（5秒長押し）。既に OFF なら何もしない。
-
 ```bash
-curl -X POST http://<IP>/power/off
-```
-
-```json
-{"status": "power_off_sent", "pc_power": false}
+curl -X POST http://<IP>:8080/power/off
 ```
 
 ### POST /power/toggle
 
-電源トグル（500ms パルス）。現在の状態に関わらず実行。
-
 ```bash
-curl -X POST http://<IP>/power/toggle
-```
-
-```json
-{"status": "toggle_sent", "pc_power": true}
+curl -X POST http://<IP>:8080/power/toggle
 ```
 
 ### POST /reset
 
-リセット（500ms パルス）。PC が OFF なら何もしない。
-
 ```bash
-curl -X POST http://<IP>/reset
+curl -X POST http://<IP>:8080/reset
 ```
+
+## WebSocket
+
+`ws://<IP>:8080/ws` に接続すると、GPIO状態が変化するたびにJSONが配信される。
 
 ```json
-{"status": "reset_sent", "pc_power": true}
-```
-
-### エラーレスポンス
-
-```json
-{"error": "not_found", "path": "/unknown"}
-```
-
-## Web UI
-
-別サーバーで静的 Web UI をホストできる。詳細は [web/README.md](web/README.md) を参照。
-
-```bash
-python3 -m http.server 8080 -d web/
+{"pc_power": true, "hdd_active": true, "beep": false, "busy": false}
 ```
 
 ## iOS ショートカット
 
-iOS のショートカットアプリから Pico W の API を直接呼び出せる。
-
-### 作成手順（電源ONの例）
-
-1. **ショートカット** アプリを開く
-2. **+** で新規ショートカット作成
-3. **アクションを追加** → **Web** → **URLの内容を取得** を選択
-4. 以下を設定:
-   - **URL**: `http://<Pico WのIP>/power/on`
-   - **方法**: `POST`
-5. 名前を「PC電源ON」などに変更して保存
-
-### 各操作のURL
-
 | 操作 | URL | メソッド |
 |------|-----|----------|
-| 電源ON | `http://<IP>/power/on` | POST |
-| 電源OFF | `http://<IP>/power/off` | POST |
-| 電源トグル | `http://<IP>/power/toggle` | POST |
-| リセット | `http://<IP>/reset` | POST |
-| 状態確認 | `http://<IP>/status` | GET |
+| 電源ON | `http://<IP>:8080/power/on` | POST |
+| 電源OFF | `http://<IP>:8080/power/off` | POST |
+| リセット | `http://<IP>:8080/reset` | POST |
+| 状態確認 | `http://<IP>:8080/status` | GET |
 
-### Tips
+## 旧バージョン（Pico W）
 
-- ショートカットをホーム画面に追加すれば、アプリアイコンとしてワンタップで操作可能
-- Siri に「PC電源ON」と言って実行することも可能
-- ウィジェットに配置して通知センターからも操作可能
-- 同じWiFiネットワークに接続している必要がある
-
-## 注意事項
-
-- パルス送信直後の `pc_power` は状態変化前の値の場合がある（数秒後に `/status` で再確認推奨）
-- WiFi SSID とパスワードは `config.py` に平文で記述される
-- Pico W は USB 給電で常時動作するため、PC 電源が OFF でもリモート操作可能
+Raspberry Pi Pico W 用の MicroPython 実装は [pico/](pico/) ディレクトリに残してあります。
 
 ## ライセンス
 
