@@ -160,10 +160,6 @@ curl -X POST http://<IP>:8080/reset
 | リセット | `http://<IP>:8080/reset` | POST |
 | 状態確認 | `http://<IP>:8080/status` | GET |
 
-## 旧バージョン（Pico W）
-
-Raspberry Pi Pico W 用の MicroPython 実装は [pico/](pico/) ディレクトリに残してあります。
-
 ## ライセンス
 
 MIT
