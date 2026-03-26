@@ -2,3 +2,8 @@ fastapi
 uvicorn[standard]
 gpiozero
 RPi.GPIO
+
+# dev / test
+pytest
+pytest-asyncio
+httpx
