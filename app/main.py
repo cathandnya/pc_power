@@ -5,7 +5,6 @@ from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
 from app.gpio_controller import GPIOController
 from app.ws_manager import WSManager
@@ -26,7 +25,7 @@ async def lifespan(app: FastAPI):
     # Startup
     gpio.set_on_change(on_gpio_change)
     monitor_task = asyncio.create_task(gpio.monitor())
-    logger.info("PC Power Controller started")
+    logger.info("Front Panel Bridge started")
     yield
     # Shutdown
     monitor_task.cancel()

@@ -1,6 +1,6 @@
 {
-  "name": "PC Remote Power",
-  "short_name": "PC Power",
+  "name": "Front Panel Bridge",
+  "short_name": "FPBridge",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1a2e",

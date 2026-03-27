@@ -1,4 +1,4 @@
-# PC Front Panel Wireless Bridge
+# Front Panel Bridge
 
 Raspberry Pi Zero W を使って、マザーボードのフロントパネルピンヘッダーを無線化するデバイス。
 

@@ -1,5 +1,5 @@
 [Unit]
-Description=PC Remote Power Controller
+Description=Front Panel Bridge
 After=network-online.target
 Wants=network-online.target
 

@@ -3,7 +3,7 @@ set -e
 
 APP_DIR="/opt/pc-power"
 
-echo "=== PC Remote Power Controller ==="
+echo "=== Front Panel Bridge ==="
 
 # Install dependencies
 echo "Installing Python packages..."
