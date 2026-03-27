@@ -9,6 +9,7 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon.svg">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 <title>Front Panel Bridge</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,97 +34,62 @@
     color: #ccc;
   }
 
-  /* Status card */
-  .status-card {
+  /* Status indicators */
+  .indicators {
+    display: flex;
+    justify-content: center;
+    gap: 36px;
     background: #16213e;
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 20px;
   }
-  .status-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 0;
+  .indicator i {
+    font-size: 24px;
+    color: #444;
+    transition: color 0.15s, filter 0.15s;
   }
-  .status-row + .status-row {
-    border-top: 1px solid #1e2d4a;
+  .indicator i.on {
+    color: #4ade80;
+    filter: drop-shadow(0 0 8px #4ade80);
   }
-  .status-label {
-    font-size: 0.9rem;
-    color: #999;
+  .indicator i.hdd.on {
+    color: #f59e0b;
+    filter: drop-shadow(0 0 8px #f59e0b);
   }
-  .status-value {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 600;
+  .indicator i.beep.on {
+    color: #f87171;
+    filter: drop-shadow(0 0 8px #f87171);
   }
-
-  /* Indicators */
-  .dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #444;
-    transition: background 0.15s;
-  }
-  .dot.on {
-    background: #4ade80;
-    box-shadow: 0 0 8px #4ade80;
-  }
-  .dot.hdd {
-    background: #444;
-  }
-  .dot.hdd.on {
-    background: #f59e0b;
-    box-shadow: 0 0 8px #f59e0b;
-  }
-  .dot.beep {
-    background: #444;
-  }
-  .dot.beep.on {
-    background: #f87171;
-    box-shadow: 0 0 8px #f87171;
-  }
-
-  /* Connection status */
-  .conn-bar {
-    text-align: center;
-    font-size: 0.75rem;
-    color: #666;
-    margin-bottom: 16px;
-  }
-  .conn-bar .ws-ok { color: #4ade80; }
-  .conn-bar .ws-err { color: #f87171; }
 
   /* Buttons */
   .actions {
     display: flex;
-    flex-direction: column;
     gap: 10px;
   }
   .btn {
-    padding: 14px;
+    flex: 1;
+    padding: 18px;
     border: none;
     border-radius: 10px;
-    font-size: 1rem;
-    font-weight: 600;
+    font-size: 1.4rem;
     cursor: pointer;
     transition: opacity 0.2s, transform 0.1s;
   }
-  .btn:active { transform: scale(0.97); }
+  .btn:active { transform: scale(0.95); }
   .btn:disabled {
     opacity: 0.35;
     cursor: not-allowed;
     transform: none;
   }
-  .btn-on { background: #166534; color: #fff; }
-  .btn-on:hover:not(:disabled) { background: #15803d; }
-  .btn-off { background: #991b1b; color: #fff; }
-  .btn-off:hover:not(:disabled) { background: #b91c1c; }
-  .btn-reset { background: #92400e; color: #fff; }
-  .btn-reset:hover:not(:disabled) { background: #a16207; }
+  .btn-on { background: #1e3a5f; color: #fff; }
+  .btn-on:hover:not(:disabled) { background: #254b78; }
+  .btn-off { background: #1e3a5f; color: #fff; }
+  .btn-off:hover:not(:disabled) { background: #254b78; }
+  .btn-reset { background: #1a2d4a; color: #fff; }
+  .btn-reset:hover:not(:disabled) { background: #213a5c; }
+  .btn-force { background: transparent; color: #666; border: 1px solid #333; font-size: 0.8rem; }
+  .btn-force:hover:not(:disabled) { color: #f87171; border-color: #f87171; }
 
   .error {
     text-align: center;
@@ -139,36 +105,25 @@
 <div class="container">
   <h1>Front Panel Bridge</h1>
 
-  <div class="conn-bar" id="connBar">接続中...</div>
 
-  <div class="status-card">
-    <div class="status-row">
-      <span class="status-label">電源</span>
-      <span class="status-value">
-        <span class="dot" id="dotPower"></span>
-        <span id="txtPower">--</span>
-      </span>
+  <div class="indicators">
+    <div class="indicator">
+      <i class="fa-solid fa-power-off" id="icoPower"></i>
     </div>
-    <div class="status-row">
-      <span class="status-label">ディスクアクセス</span>
-      <span class="status-value">
-        <span class="dot hdd" id="dotHdd"></span>
-        <span id="txtHdd">--</span>
-      </span>
+    <div class="indicator">
+      <i class="fa-solid fa-hard-drive hdd" id="icoHdd"></i>
     </div>
-    <div class="status-row">
-      <span class="status-label">ビープ</span>
-      <span class="status-value">
-        <span class="dot beep" id="dotBeep"></span>
-        <span id="txtBeep">--</span>
-      </span>
+    <div class="indicator">
+      <i class="fa-solid fa-volume-high beep" id="icoBeep"></i>
     </div>
   </div>
 
   <div class="actions">
-    <button class="btn btn-on" id="btnOn" onclick="send('/power/on')" disabled>Power ON</button>
-    <button class="btn btn-off" id="btnOff" onclick="send('/power/off')" disabled>Power OFF</button>
-    <button class="btn btn-reset" id="btnReset" onclick="send('/reset')" disabled>Reset</button>
+    <button class="btn btn-on" id="btnPower" onclick="send('/power/toggle')" style="flex:2"><i class="fa-solid fa-power-off"></i></button>
+    <button class="btn btn-reset" id="btnReset" onclick="send('/reset')"><i class="fa-solid fa-arrows-rotate"></i></button>
+  </div>
+  <div class="actions" style="margin-top:10px">
+    <button class="btn btn-force" id="btnForce" onclick="confirmForceOff()"><i class="fa-solid fa-plug-circle-xmark" style="margin-right:6px"></i>Force OFF</button>
   </div>
 
   <div class="error" id="error"></div>
@@ -179,24 +134,24 @@
   let ws = null;
   let reconnectTimer = null;
 
+  let pcPower = false;
+
   function updateUI(data) {
-    // Power
-    $('dotPower').className = 'dot' + (data.pc_power ? ' on' : '');
-    $('txtPower').textContent = data.pc_power ? 'ON' : 'OFF';
+    pcPower = data.pc_power;
+    $('icoPower').className = 'fa-solid fa-power-off' + (pcPower ? ' on' : '');
+    $('icoHdd').className = 'fa-solid fa-hard-drive hdd' + (data.hdd_active ? ' on' : '');
+    $('icoBeep').className = 'fa-solid fa-volume-high beep' + (data.beep ? ' on' : '');
 
-    // HDD
-    $('dotHdd').className = 'dot hdd' + (data.hdd_active ? ' on' : '');
-    $('txtHdd').textContent = data.hdd_active ? 'Active' : 'Idle';
+    const busy = data.busy;
+    $('btnPower').disabled = busy;
+    $('btnReset').disabled = busy;
+    $('btnForce').disabled = busy;
+  }
 
-    // Beep
-    $('dotBeep').className = 'dot beep' + (data.beep ? ' on' : '');
-    $('txtBeep').textContent = data.beep ? 'ON' : '--';
-
-    // Buttons
-    const enabled = !data.busy;
-    $('btnOn').disabled = !enabled;
-    $('btnOff').disabled = !enabled;
-    $('btnReset').disabled = !enabled;
+  function confirmForceOff() {
+    if (confirm('強制シャットダウンしますか？')) {
+      send('/power/off');
+    }
   }
 
   function connectWS() {
@@ -204,7 +159,6 @@
     ws = new WebSocket(proto + '//' + location.host + '/ws');
 
     ws.onopen = () => {
-      $('connBar').innerHTML = '<span class="ws-ok">WebSocket 接続中</span>';
       $('error').textContent = '';
     };
 
@@ -214,8 +168,6 @@
     };
 
     ws.onclose = () => {
-      $('connBar').innerHTML = '<span class="ws-err">切断 - 再接続中...</span>';
-      setButtons(false);
       scheduleReconnect();
     };
 
@@ -233,9 +185,9 @@
   }
 
   function setButtons(enabled) {
-    $('btnOn').disabled = !enabled;
-    $('btnOff').disabled = !enabled;
+    $('btnPower').disabled = !enabled;
     $('btnReset').disabled = !enabled;
+    $('btnForce').disabled = !enabled;
   }
 
   async function send(path) {

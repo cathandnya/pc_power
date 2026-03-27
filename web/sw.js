@@ -1,4 +1,4 @@
-const CACHE_NAME = "fp-bridge-v1";
+const CACHE_NAME = "fp-bridge-v2";
 const ASSETS = ["/", "/manifest.json", "/icon.svg"];
 
 self.addEventListener("install", (e) => {

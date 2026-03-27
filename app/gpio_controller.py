@@ -1,9 +1,13 @@
 import asyncio
+import os
+import random
 import logging
 from gpiozero import OutputDevice, InputDevice
 from app import config
 
 logger = logging.getLogger(__name__)
+
+MOCK_MODE = os.environ.get("GPIOZERO_PIN_FACTORY") == "mock"
 
 
 class GPIOController:
@@ -49,31 +53,64 @@ class GPIOController:
             device.off()
             self._busy = False
 
+    def _mock_set_power(self, on):
+        """Mock mode: simulate PWR_LED state change."""
+        if MOCK_MODE:
+            if on:
+                self._power_led.pin.drive_high()
+            else:
+                self._power_led.pin.drive_low()
+
     async def power_on(self):
         if self._power_led.is_active:
             return {"status": "already_on", "pc_power": True}
         await self._pulse(self._power_sw, config.PULSE_POWER_ON)
+        self._mock_set_power(True)
         return {"status": "power_on_sent", "pc_power": self._power_led.is_active}
 
     async def power_off(self):
         if not self._power_led.is_active:
             return {"status": "already_off", "pc_power": False}
         await self._pulse(self._power_sw, config.PULSE_POWER_OFF)
+        self._mock_set_power(False)
         return {"status": "power_off_sent", "pc_power": self._power_led.is_active}
 
     async def power_toggle(self):
         await self._pulse(self._power_sw, config.PULSE_POWER_ON)
+        self._mock_set_power(not self._power_led.is_active)
         return {"status": "toggle_sent", "pc_power": self._power_led.is_active}
 
     async def reset(self):
         if not self._power_led.is_active:
             return {"status": "pc_is_off", "pc_power": False}
         await self._pulse(self._reset_sw, config.PULSE_RESET)
+        if MOCK_MODE:
+            asyncio.create_task(self._mock_beep())
         return {"status": "reset_sent", "pc_power": self._power_led.is_active}
+
+    async def _mock_beep(self):
+        """Mock mode: simulate POST beep on reset."""
+        self._speaker.pin.drive_high()
+        await asyncio.sleep(0.3)
+        self._speaker.pin.drive_low()
+
+    async def _mock_hdd_activity(self):
+        """Mock mode: simulate random HDD LED activity while PC is ON."""
+        while True:
+            if self._power_led.is_active:
+                if random.random() < 0.4:
+                    self._hdd_led.pin.drive_high()
+                else:
+                    self._hdd_led.pin.drive_low()
+            else:
+                self._hdd_led.pin.drive_low()
+            await asyncio.sleep(random.uniform(0.05, 0.3))
 
     async def monitor(self):
         """GPIO入力を監視し、変化時にコールバックを呼ぶ"""
         logger.info("GPIO monitor started (interval: %sms)", int(config.MONITOR_INTERVAL * 1000))
+        if MOCK_MODE:
+            asyncio.create_task(self._mock_hdd_activity())
         while True:
             state = self.get_status()
             # busy は監視対象外（制御側の状態なので）
