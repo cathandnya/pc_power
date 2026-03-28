@@ -3,154 +3,132 @@ import schemdraw.elements as elm
 
 SVG_PATH = "/Users/nya/Documents/Development/pc_power/hardware/wiring.svg"
 
-def draw_switch_block(d, y, name, btn_name, gpio_name, mb_name):
-    """PWR_SW / RST_SW 中継ブロック"""
+# Layout: Left = Zero W (x=-4), Center = Universal PCB (x=4..8), Right = Motherboard (x=15)
+# All blue lines end at x=15, all green lines end at x=-4
+
+ZW_X = -4       # Zero W column
+PCB_L = 4       # PCB left edge
+PCB_R = 8       # PCB right edge
+MB_X = 15       # Motherboard column (line endpoint)
+MB_LBL = 17     # Motherboard label position
+
+
+def draw_switch_block(d, y, name):
+    """PWR_SW / RST_SW relay block on PCB"""
     d += elm.Label().at((6, y)).label(name, fontsize=10)
 
-    d += (h1 := elm.Dot(open=True).at((4, y - 1.5)))
-    d += (h2 := elm.Dot(open=True).at((8, y - 1.5)))
+    # Pin headers for case button
+    d += (h1 := elm.Dot(open=True).at((PCB_L, y - 1.5)))
+    d += (h2 := elm.Dot(open=True).at((PCB_R, y - 1.5)))
     d += elm.Line().at(h1.end).to(h2.end)
     d += elm.Label().at((6, y - 1)).label("pin header", fontsize=8)
 
-    # To MB
+    # Signal: h1 down to branch point
     d += elm.Line().down(1.5).at(h1.end)
+    d += (branch := elm.Dot())
+
+    # Left (green): branch → Zero W
+    d += elm.Line().at(branch.center).to((ZW_X, branch.center[1])).color("green")
+
+    # Down from branch, then right (blue): → MB
+    d += elm.Line().down(1.5).at(branch.center)
     d += (mb := elm.Dot())
-    d += elm.Line().right(7).at(mb.center).color("blue")
+    d += elm.Line().at(mb.center).to((MB_X, mb.center[1])).color("blue")
 
-    # GND to MB
-    d += elm.Line().down(1.5).at(h2.end)
+    # GND: h2 down, then right (blue): → MB
+    d += elm.Line().down(3).at(h2.end)
     d += (gnd := elm.Dot())
-    d += elm.Line().right(3).at(gnd.center).color("blue")
-    d += elm.Line().down(1.5).at(d.here).color("blue")
-    d += elm.Line().right(4).at(d.here).color("blue")
-
-    # To Zero W
-    d += elm.Line().down(1.5).at(mb.center)
-    d += (pi := elm.Dot())
-
-    return pi, gnd
+    d += elm.Line().at(gnd.center).to((MB_X, gnd.center[1])).color("blue")
 
 
-def draw_divider_block(d, y, name, gpio_name, mb_name):
-    """PWR_LED / HDD_LED 分圧回路ブロック"""
+def draw_divider_block(d, y, name):
+    """PWR_LED / HDD_LED divider block on PCB"""
     d += elm.Label().at((6, y)).label(f"{name} (分圧回路)", fontsize=10)
 
-    d += (inp := elm.Dot().at((4, y - 1.5)))
-    d += elm.Resistor().right(4).at(inp.center).label("6.8kΩ", loc="top", fontsize=9)
+    # Input from MB (blue): MB → PCB right edge
+    d += (inp := elm.Dot().at((PCB_R, y - 1.5)))
+    d += elm.Line().at(inp.center).to((MB_X, inp.center[1])).color("blue")
+
+    # Divider resistors
+    d += elm.Resistor().left(4).at(inp.center).label("6.8kΩ", loc="top", fontsize=9)
     d += (mid := elm.Dot())
 
     d += elm.Resistor().down(2).at(mid.center).label("3.3kΩ", loc="right", fontsize=9)
     d += (gnd := elm.Dot())
 
-    d += elm.Line().right(2).at(mid.center)
-    d += (pi := elm.Dot())
+    # GND (blue): → MB
+    d += elm.Line().at(gnd.center).to((MB_X, gnd.center[1])).color("blue")
 
-    # MB connection
-    d += elm.Line().down(1).at(inp.center)
-    d += (mb := elm.Dot())
-    d += elm.Line().right(7).at(mb.center).color("blue")
+    # Output to Zero W (green): mid → Zero W
+    d += elm.Line().at(mid.center).to((ZW_X, mid.center[1])).color("green")
 
-    # GND to MB
-    d += elm.Line().right(1).at(gnd.center).color("blue")
-    d += elm.Line().down(1).at(d.here).color("blue")
-    d += elm.Line().right(4).at(d.here).color("blue")
 
-    return pi, gnd
+def draw_speaker_block(d, y):
+    """SPEAKER block on PCB"""
+    d += elm.Label().at((6, y)).label("SPEAKER", fontsize=10)
+
+    d += (h1 := elm.Dot(open=True).at((PCB_L, y - 1.5)))
+    d += (h2 := elm.Dot(open=True).at((PCB_R, y - 1.5)))
+    d += elm.Line().at(h1.end).to(h2.end)
+    d += elm.Label().at((6, y - 1)).label("pin header", fontsize=8)
+
+    # Signal: h1 down, branch left (green) and right (blue)
+    d += elm.Line().down(1.5).at(h1.end)
+    d += (branch := elm.Dot())
+
+    # Left (green): → Zero W
+    d += elm.Line().at(branch.center).to((ZW_X, branch.center[1])).color("green")
+
+    # Right (blue): → MB
+    d += elm.Line().at(branch.center).to((MB_X, branch.center[1])).color("blue")
+
+    # GND: h2 down, then right (blue): → MB
+    d += elm.Line().down(1.5).at(h2.end)
+    d += (gnd := elm.Dot())
+    d += elm.Line().at(gnd.center).to((MB_X, gnd.center[1])).color("blue")
 
 
 with schemdraw.Drawing(file=SVG_PATH, show=False) as d:
     d.config(fontsize=11, unit=3)
 
     # Title
-    d += elm.Label().at((6, 3)).label("接続図: PCケース ─ 中継基板 ─ マザーボード", fontsize=14)
+    d += elm.Label().at((6, 3)).label("接続図: Zero W ─ 中継基板 ─ マザーボード", fontsize=14)
 
-    # ---- Center: Universal PCB ----
-    d += elm.Label().at((6, 0.5)).label("[ ユニバーサル基板 (中継ボード) ]", fontsize=12)
+    # Column headers
+    d += elm.Label().at((ZW_X, 0.5)).label("[ Zero W ]", fontsize=12)
+    d += elm.Label().at((6, 0.5)).label("[ ユニバーサル基板 ]", fontsize=12)
+    d += elm.Label().at((MB_LBL, 0.5)).label("[ マザーボード ]", fontsize=12)
 
-    # PWR_SW
-    pwr_pi, _ = draw_switch_block(d, -1, "PWR_SW", "電源ボタン", "GPIO17", "PWR_SW")
+    # Blocks
+    draw_switch_block(d, -1, "PWR_SW")
+    draw_switch_block(d, -8, "RST_SW")
+    draw_divider_block(d, -15, "PWR_LED")
+    draw_divider_block(d, -22, "HDD_LED")
+    draw_speaker_block(d, -29)
 
-    # RST_SW
-    rst_pi, _ = draw_switch_block(d, -7.5, "RST_SW", "リセットボタン", "GPIO27", "RST_SW")
+    # Left side GPIO labels
+    d += elm.Label().at((ZW_X, -3)).label("GPIO17", fontsize=9)
+    d += elm.Label().at((ZW_X, -10)).label("GPIO27", fontsize=9)
+    d += elm.Label().at((ZW_X, -17)).label("GPIO22", fontsize=9)
+    d += elm.Label().at((ZW_X, -24)).label("GPIO23", fontsize=9)
+    d += elm.Label().at((ZW_X, -31)).label("GPIO24", fontsize=9)
 
-    # PWR_LED
-    pled_pi, _ = draw_divider_block(d, -14, "PWR_LED", "GPIO22", "PWR_LED")
+    # Right side MB header labels
+    d += elm.Label().at((MB_LBL, -4.5)).label("PWR_SW", fontsize=9)
+    d += elm.Label().at((MB_LBL, -5.5)).label("(+/GND)", fontsize=7)
+    d += elm.Label().at((MB_LBL, -11.5)).label("RST_SW", fontsize=9)
+    d += elm.Label().at((MB_LBL, -12.5)).label("(+/GND)", fontsize=7)
+    d += elm.Label().at((MB_LBL, -16.5)).label("PWR_LED", fontsize=9)
+    d += elm.Label().at((MB_LBL, -17.5)).label("(+/GND)", fontsize=7)
+    d += elm.Label().at((MB_LBL, -23.5)).label("HDD_LED", fontsize=9)
+    d += elm.Label().at((MB_LBL, -24.5)).label("(+/GND)", fontsize=7)
+    d += elm.Label().at((MB_LBL, -31)).label("SPEAKER", fontsize=9)
+    d += elm.Label().at((MB_LBL, -32)).label("(+/GND)", fontsize=7)
 
-    # HDD_LED
-    hled_pi, _ = draw_divider_block(d, -21, "HDD_LED", "GPIO23", "HDD_LED")
-
-    # SPEAKER (直結)
-    d += elm.Label().at((6, -28)).label("SPEAKER", fontsize=10)
-    d += (spk_h1 := elm.Dot(open=True).at((4, -29.5)))
-    d += (spk_h2 := elm.Dot(open=True).at((8, -29.5)))
-    d += elm.Line().at(spk_h1.end).to(spk_h2.end)
-    d += elm.Label().at((6, -29)).label("pin header", fontsize=8)
-
-    d += elm.Line().down(1.5).at(spk_h1.end)
-    d += (spk_mb := elm.Dot())
-    d += elm.Line().right(7).at(spk_mb.center).color("blue")
-
-    d += elm.Line().down(1.5).at(spk_h2.end)
-    d += (spk_gnd := elm.Dot())
-    d += elm.Line().right(3).at(spk_gnd.center).color("blue")
-    d += elm.Line().down(1.5).at(d.here).color("blue")
-    d += elm.Line().right(4).at(d.here).color("blue")
-
-    d += elm.Line().down(1.5).at(spk_mb.center)
-    spk_pi = elm.Dot()
-    d += spk_pi
-
-    # ---- Left: PC Case ----
-    d += elm.Label().at((-3, 0.5)).label("[ PCケース ]", fontsize=12)
-
-    d += elm.Switch().at((-5, -2.5)).right(3).label("電源ボタン", loc="top", fontsize=9)
-    d += elm.Line().right(1)
-    d += elm.Label().at((0.5, -2.5)).label("→", fontsize=12)
-
-    d += elm.Switch().at((-5, -9)).right(3).label("リセットボタン", loc="top", fontsize=9)
-    d += elm.Line().right(1)
-    d += elm.Label().at((0.5, -9)).label("→", fontsize=12)
-
-    d += elm.Label().at((-3, -15)).label("(LED)", fontsize=9)
-    d += elm.Label().at((-3, -22)).label("(LED)", fontsize=9)
-    d += elm.Label().at((-3, -29.5)).label("(ブザー)", fontsize=9)
-
-    # ---- Right: Motherboard ----
-    d += elm.Label().at((15, 0.5)).label("[ マザーボード ]", fontsize=12)
-
-    for y_pos, name in [(-3.5, "PWR_SW"), (-10, "RST_SW"), (-16.5, "PWR_LED"),
-                         (-23.5, "HDD_LED"), (-31, "SPEAKER")]:
-        d += elm.Label().at((14.5, y_pos)).label("←", fontsize=12)
-        d += elm.Line().right(3).at((15, y_pos - 0.5))
-        d += elm.Dot(open=True)
-        d += elm.Label().at((19.5, y_pos - 0.5)).label(name, fontsize=10)
-
-    # ---- Bottom: Zero W ----
-    d += elm.Label().at((6, -35.5)).label("[ Raspberry Pi Zero W ]", fontsize=12)
-
-    # GPIO lines from PCB to Zero W
-    d += elm.Line().down(3).at(pwr_pi.center).color("green")
-    d += elm.Label().at((4, -37)).label("↓ GPIO17", fontsize=9)
-
-    d += elm.Line().down(9).at(rst_pi.center).color("green")
-    d += elm.Label().at((4, -37.8)).label("↓ GPIO27", fontsize=9)
-
-    d += elm.Line().down(4).at(pled_pi.center).color("green")
-    d += elm.Label().at((10, -37)).label("↓ GPIO22", fontsize=9)
-
-    d += elm.Line().down(4).at(hled_pi.center).color("green")
-    d += elm.Label().at((10, -37.8)).label("↓ GPIO23", fontsize=9)
-
-    d += elm.Line().down(2).at(spk_pi.center).color("green")
-    d += elm.Label().at((4, -38.6)).label("↓ GPIO24", fontsize=9)
-
-    d += elm.Label().at((8, -37.8)).label("↓ GND", fontsize=9)
-
-    d += elm.Label().at((6, -39.5)).label("MB内部USBヘッダー → PWR端子 (常時給電)", fontsize=9)
-
-    # Legend
-    d += elm.Label().at((6, -41.5)).label(
-        "青線 = デュポンケーブル (MB接続)    緑線 = デュポンケーブル (Zero W接続)",
+    # Notes
+    d += elm.Label().at((6, -36)).label("ケースボタン: ピンヘッダーに差し込み (PWR_SW / RST_SW)", fontsize=8)
+    d += elm.Label().at((6, -37.5)).label(
+        "緑線 = Zero W接続    青線 = マザーボード接続",
         fontsize=8
     )
 

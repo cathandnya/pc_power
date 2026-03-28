@@ -3,16 +3,20 @@ import schemdraw.elements as elm
 
 SVG_PATH = "/Users/nya/Documents/Development/pc_power/hardware/schematic.svg"
 
+# Layout: Left = Zero W, Right = Motherboard
+
 def draw_switch_section(d, y, gpio_label, section_label, btn_label, header_label):
-    """PWR_SW / RST_SW 共通: スイッチ並列接続回路"""
+    """PWR_SW / RST_SW: switch parallel circuit"""
     d += elm.Label().at((0, y)).label(f"[ {section_label} ]", fontsize=13)
 
+    # Left: Zero W GPIO
     d += (dot := elm.Dot(open=True).at((0, y - 2)))
     d += elm.Label().at((-1.8, y - 2)).label(f"{gpio_label}\n(Zero W)", fontsize=10)
 
     d += elm.Line().right(3).at(dot.end)
     d += (junc1 := elm.Dot())
 
+    # Parallel physical button
     d += elm.Line().up(1.5).at(junc1.center)
     d += elm.Switch().right(3).label(btn_label, loc="top", fontsize=9)
     d += elm.Line().down(1.5)
@@ -20,8 +24,10 @@ def draw_switch_section(d, y, gpio_label, section_label, btn_label, header_label
 
     d += elm.Line().right(2).at(junc1.center)
     d += elm.Line().right(3).at(junc2.center)
+
+    # Right: Motherboard header
     d += elm.Dot(open=True)
-    d += elm.Label().at((d.here[0] + 1.5, d.here[1])).label(f"{header_label}\n(MB)", fontsize=10)
+    d += elm.Label().at((d.here[0] + 1.8, d.here[1])).label(f"{header_label}\n(MB)", fontsize=10)
 
     d += elm.Line().down(1.5).at(junc1.center)
     d += elm.Ground()
@@ -30,21 +36,26 @@ def draw_switch_section(d, y, gpio_label, section_label, btn_label, header_label
 
 
 def draw_divider_section(d, y, gpio_label, section_label, header_label):
-    """PWR_LED / HDD_LED 共通: 分圧回路"""
+    """PWR_LED / HDD_LED: voltage divider"""
     d += elm.Label().at((0, y)).label(f"[ {section_label} ]", fontsize=13)
 
-    d += (dot := elm.Dot(open=True).at((0, y - 2.5)))
-    d += elm.Label().at((-1.8, y - 2.5)).label(f"{header_label}\n(MB, 5V)", fontsize=10)
+    # Left: Zero W GPIO
+    d += (gpio_dot := elm.Dot(open=True).at((0, y - 2.5)))
+    d += elm.Label().at((-1.8, y - 2.5)).label(f"{gpio_label}\n(Zero W)", fontsize=10)
 
-    d += elm.Resistor().right(4).at(dot.end).label("6.8kΩ", loc="top", fontsize=10)
+    d += elm.Line().right(2).at(gpio_dot.end)
     d += (junc := elm.Dot())
 
+    # Divider: R2 to GND
     d += elm.Resistor().down(3).at(junc.center).label("3.3kΩ", loc="right", fontsize=10)
     d += elm.Ground()
 
-    d += elm.Line().right(3).at(junc.center)
+    # R1 to MB
+    d += elm.Resistor().right(4).at(junc.center).label("6.8kΩ", loc="top", fontsize=10)
+
+    # Right: Motherboard header
     d += elm.Dot(open=True)
-    d += elm.Label().at((d.here[0] + 1.5, d.here[1])).label(f"{gpio_label}\n(Zero W)", fontsize=10)
+    d += elm.Label().at((d.here[0] + 1.8, d.here[1])).label(f"{header_label}\n(MB, 5V)", fontsize=10)
 
     d += elm.Label().at((junc.center[0], junc.center[1] + 0.8)).label("≈1.65V", fontsize=9)
 
@@ -64,27 +75,19 @@ with schemdraw.Drawing(file=SVG_PATH, show=False) as d:
     # 4. HDD LED (voltage divider)
     draw_divider_section(d, -21, "GPIO23", "HDD LED (ディスクアクセス)", "HDD_LED+")
 
-    # 5. Speaker
+    # 5. Speaker (10kΩ clamp)
     d += elm.Label().at((0, -28)).label("[ Speaker (ビープ音) ]", fontsize=13)
-    d += (spk_dot := elm.Dot(open=True).at((0, -30.5)))
-    d += elm.Label().at((-1.8, -30.5)).label("SPEAKER+\n(MB)", fontsize=10)
-    d += elm.Line().right(4).at(spk_dot.end)
+    d += (spk_gpio := elm.Dot(open=True).at((0, -30.5)))
+    d += elm.Label().at((-1.8, -30.5)).label("GPIO24\n(Zero W)", fontsize=10)
+    d += elm.Resistor().right(4).at(spk_gpio.end).label("10kΩ", loc="top", fontsize=10)
     d += elm.Dot(open=True)
-    d += elm.Label().at((d.here[0] + 1.5, d.here[1])).label("GPIO24\n(Zero W)", fontsize=10)
-
-    # 6. USB Power
-    d += elm.Label().at((0, -34)).label("[ 給電 ]", fontsize=13)
-    d += (usb_dot := elm.Dot(open=True).at((0, -36)))
-    d += elm.Label().at((-2, -36)).label("MB内部USB\nヘッダー(5V)", fontsize=10)
-    d += elm.Line().right(4).at(usb_dot.end)
-    d += elm.Dot(open=True)
-    d += elm.Label().at((d.here[0] + 1.5, d.here[1])).label("PWR端子\n(Zero W)", fontsize=10)
+    d += elm.Label().at((d.here[0] + 1.8, d.here[1])).label("SPEAKER+\n(MB)", fontsize=10)
 
     # Notes
-    d += elm.Label().at((0, -39)).label(
+    d += elm.Label().at((0, -34)).label(
+        "左 = Raspberry Pi Zero W    右 = マザーボード\n"
         "GPIO17/27: Hi-Z → LOW to press  |  Pulse: ON=500ms / OFF=5s / Reset=500ms\n"
-        "GPIO22/23: 分圧 5V→1.65V  |  GPIO24: SPEAKER直結\n"
-        "給電: MB内部USBヘッダー (BIOS: USB Standby Power有効)",
+        "GPIO22/23: 分圧 5V→1.65V  |  GPIO24: 10kΩクランプ (5V/3.3V両対応)",
         fontsize=8
     )
 
