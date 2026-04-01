@@ -1,4 +1,4 @@
-const CACHE_NAME = "fp-bridge-v2";
+const CACHE_NAME = "fp-bridge-v3";
 const ASSETS = ["/", "/manifest.json", "/icon.svg"];
 
 self.addEventListener("install", (e) => {
@@ -16,15 +16,21 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (e) => {
-  // API and WebSocket requests: network only
+  // API and WebSocket: network only
   if (e.request.url.includes("/status") ||
       e.request.url.includes("/power/") ||
       e.request.url.includes("/reset") ||
       e.request.url.includes("/ws")) {
     return;
   }
-  // Static assets: cache first, fallback to network
+  // Network first, fallback to cache
   e.respondWith(
-    caches.match(e.request).then((cached) => cached || fetch(e.request))
+    fetch(e.request)
+      .then((res) => {
+        const clone = res.clone();
+        caches.open(CACHE_NAME).then((c) => c.put(e.request, clone));
+        return res;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
