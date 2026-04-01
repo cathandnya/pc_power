@@ -49,6 +49,9 @@
     color: #444;
     transition: color 0.15s, filter 0.15s;
   }
+  .indicator i.connected {
+    color: #ccc;
+  }
   .indicator i.on {
     color: #4ade80;
     filter: drop-shadow(0 0 8px #4ade80);
@@ -135,12 +138,22 @@
   let reconnectTimer = null;
 
   let pcPower = false;
+  let wsConnected = false;
+
+  function setConnected(connected) {
+    wsConnected = connected;
+    if (!connected) {
+      $('icoPower').className = 'fa-solid fa-power-off';
+      $('icoHdd').className = 'fa-solid fa-hard-drive hdd';
+      $('icoBeep').className = 'fa-solid fa-volume-high beep';
+    }
+  }
 
   function updateUI(data) {
     pcPower = data.pc_power;
-    $('icoPower').className = 'fa-solid fa-power-off' + (pcPower ? ' on' : '');
-    $('icoHdd').className = 'fa-solid fa-hard-drive hdd' + (data.hdd_active ? ' on' : '');
-    $('icoBeep').className = 'fa-solid fa-volume-high beep' + (data.beep ? ' on' : '');
+    $('icoPower').className = 'fa-solid fa-power-off' + (pcPower ? ' on' : ' connected');
+    $('icoHdd').className = 'fa-solid fa-hard-drive hdd' + (data.hdd_active ? ' on' : ' connected');
+    $('icoBeep').className = 'fa-solid fa-volume-high beep' + (data.beep ? ' on' : ' connected');
 
     const busy = data.busy;
     $('btnPower').disabled = busy;
@@ -159,6 +172,7 @@
     ws = new WebSocket(proto + '//' + location.host + '/ws');
 
     ws.onopen = () => {
+      setConnected(true);
       $('error').textContent = '';
     };
 
@@ -168,6 +182,7 @@
     };
 
     ws.onclose = () => {
+      setConnected(false);
       scheduleReconnect();
     };
 
