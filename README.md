@@ -66,6 +66,10 @@ Zero W の GND とマザーボードの各ヘッダーの GND（PWR_SW-, RST_SW-
 - SPEAKER の 10kΩ クランプの GND 側
 - マザーボード各ヘッダーの GND 側（デュポンケーブル経由）
 
+### ユニバーサル基板 実装図
+
+![基板実装図](hardware/pcb_layout.svg)
+
 ## 配線
 
 ### 接続図
