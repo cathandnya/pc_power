@@ -16,9 +16,9 @@ echo "Setting up Python virtual environment..."
 python3 -m venv "$VENV_DIR"
 "$VENV_DIR/bin/pip" install -r "$REPO_DIR/requirements.txt"
 
-# Install systemd service
+# Install systemd service (replace placeholder with actual path)
 echo "Installing systemd service..."
-sudo cp "$REPO_DIR/fp-bridge.service" /etc/systemd/system/
+sed "s|__REPO_DIR__|$REPO_DIR|g" "$REPO_DIR/fp-bridge.service" | sudo tee /etc/systemd/system/fp-bridge.service > /dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable fp-bridge
 sudo systemctl restart fp-bridge

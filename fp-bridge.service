@@ -4,8 +4,8 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=%h/pc_power/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8080
-WorkingDirectory=%h/pc_power
+ExecStart=__REPO_DIR__/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8080
+WorkingDirectory=__REPO_DIR__
 Restart=always
 RestartSec=5
 User=root
