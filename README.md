@@ -96,7 +96,7 @@ Zero W の GND とマザーボードの各ヘッダーの GND（PWR_SW-, RST_SW-
 
 ### 1. Raspberry Pi OS のインストール
 
-1. [Raspberry Pi Imager](https://www.raspberrypi.com/software/) で microSD に Raspberry Pi OS Lite を書き込む
+1. [Raspberry Pi Imager](https://www.raspberrypi.com/software/) で microSD に **Raspberry Pi OS Lite (32-bit, Bookworm)** を書き込む（Zero WはARMv6のため64-bit非対応）
 2. Imager の設定で WiFi・SSH を有効化
 3. microSD を Zero W に挿入、USBで給電して起動
 
