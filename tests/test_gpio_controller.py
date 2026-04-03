@@ -58,7 +58,7 @@ async def test_power_off_when_on(gpio, fast_sleep):
 @pytest.mark.asyncio
 async def test_power_off_when_already_off(gpio, fast_sleep):
     result = await gpio.power_off()
-    assert result["status"] == "already_off"
+    assert result["status"] == "power_off_sent"
     assert result["pc_power"] is False
 
 
@@ -78,8 +78,7 @@ async def test_reset_when_on(gpio, fast_sleep):
 @pytest.mark.asyncio
 async def test_reset_when_off(gpio, fast_sleep):
     result = await gpio.reset()
-    assert result["status"] == "pc_is_off"
-    assert result["pc_power"] is False
+    assert result["status"] == "reset_sent"
 
 
 @pytest.mark.asyncio

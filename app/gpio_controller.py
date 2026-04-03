@@ -69,8 +69,6 @@ class GPIOController:
         return {"status": "power_on_sent", "pc_power": self._power_led.is_active}
 
     async def power_off(self):
-        if not self._power_led.is_active:
-            return {"status": "already_off", "pc_power": False}
         await self._pulse(self._power_sw, config.PULSE_POWER_OFF)
         self._mock_set_power(False)
         return {"status": "power_off_sent", "pc_power": self._power_led.is_active}
@@ -81,8 +79,6 @@ class GPIOController:
         return {"status": "toggle_sent", "pc_power": self._power_led.is_active}
 
     async def reset(self):
-        if not self._power_led.is_active:
-            return {"status": "pc_is_off", "pc_power": False}
         await self._pulse(self._reset_sw, config.PULSE_RESET)
         if MOCK_MODE:
             asyncio.create_task(self._mock_beep())
