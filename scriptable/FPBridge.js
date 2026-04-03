@@ -18,7 +18,7 @@ async function getStatus() {
 
 async function postAction(path) {
   const req = new Request(`${BASE_URL}${path}`);
-  req.method = "POST";
+  req.method = "GET";
   req.timeoutInterval = 10;
   return await req.loadJSON();
 }

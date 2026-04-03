@@ -45,22 +45,22 @@ async def get_status():
     return gpio.get_status()
 
 
-@app.post("/power/on")
+@app.get("/power/on")
 async def power_on():
     return await gpio.power_on()
 
 
-@app.post("/power/off")
+@app.get("/power/off")
 async def power_off():
     return await gpio.power_off()
 
 
-@app.post("/power/toggle")
+@app.get("/power/toggle")
 async def power_toggle():
     return await gpio.power_toggle()
 
 
-@app.post("/reset")
+@app.get("/reset")
 async def reset():
     return await gpio.reset()
 

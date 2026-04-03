@@ -137,9 +137,9 @@ APIを叩きながら、マルチメーターでGPIOピンの電圧を測定す�
 | 状態 | 測定 (GPIO ↔ GND) | 期待値 |
 |------|-------------------|--------|
 | 通常時 | GPIO17 | ハイインピーダンス（不安定な値） |
-| `curl -X POST http://<IP>:8080/power/toggle` 中 | GPIO17 | ≈0V (LOW) |
+| `curl http://<IP>:8080/power/toggle` 中 | GPIO17 | ≈0V (LOW) |
 | 通常時 | GPIO27 | ハイインピーダンス |
-| `curl -X POST http://<IP>:8080/reset` 中 | GPIO27 | ≈0V (LOW) |
+| `curl http://<IP>:8080/reset` 中 | GPIO27 | ≈0V (LOW) |
 
 #### テスト手順まとめ
 
@@ -174,32 +174,32 @@ curl http://<IP>:8080/status
 {"pc_power": true, "hdd_active": false, "beep": false, "busy": false}
 ```
 
-### POST /power/on
+### GET /power/on
 
 ```bash
-curl -X POST http://<IP>:8080/power/on
+curl http://<IP>:8080/power/on
 ```
 
 ```json
 {"status": "power_on_sent", "pc_power": true}
 ```
 
-### POST /power/off
+### GET /power/off
 
 ```bash
-curl -X POST http://<IP>:8080/power/off
+curl http://<IP>:8080/power/off
 ```
 
-### POST /power/toggle
+### GET /power/toggle
 
 ```bash
-curl -X POST http://<IP>:8080/power/toggle
+curl http://<IP>:8080/power/toggle
 ```
 
-### POST /reset
+### GET /reset
 
 ```bash
-curl -X POST http://<IP>:8080/reset
+curl http://<IP>:8080/reset
 ```
 
 ## WebSocket
@@ -214,9 +214,9 @@ curl -X POST http://<IP>:8080/reset
 
 | 操作 | URL | メソッド |
 |------|-----|----------|
-| 電源ON | `http://<IP>:8080/power/on` | POST |
-| 電源OFF | `http://<IP>:8080/power/off` | POST |
-| リセット | `http://<IP>:8080/reset` | POST |
+| 電源ON | `http://<IP>:8080/power/on` | GET |
+| 電源OFF | `http://<IP>:8080/power/off` | GET |
+| リセット | `http://<IP>:8080/reset` | GET |
 | 状態確認 | `http://<IP>:8080/status` | GET |
 
 ## Scriptable ウィジェット

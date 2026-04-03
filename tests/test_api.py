@@ -30,7 +30,7 @@ async def test_get_status():
 async def test_power_on():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/power/on")
+        res = await client.get("/power/on")
     assert res.status_code == 200
     assert "status" in res.json()
 
@@ -39,7 +39,7 @@ async def test_power_on():
 async def test_power_off():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/power/off")
+        res = await client.get("/power/off")
     assert res.status_code == 200
     assert "status" in res.json()
 
@@ -48,7 +48,7 @@ async def test_power_off():
 async def test_power_toggle():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/power/toggle")
+        res = await client.get("/power/toggle")
     assert res.status_code == 200
     assert res.json()["status"] == "toggle_sent"
 
@@ -57,7 +57,7 @@ async def test_power_toggle():
 async def test_reset():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/reset")
+        res = await client.get("/reset")
     assert res.status_code == 200
 
 

@@ -209,7 +209,7 @@
     setButtons(false);
     $('error').textContent = '';
     try {
-      const res = await fetch(path, { method: 'POST' });
+      const res = await fetch(path);
       const data = await res.json();
       updateUI(data);
     } catch (e) {
