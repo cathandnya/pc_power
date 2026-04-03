@@ -35,7 +35,7 @@ class GPIOController:
         return {
             "pc_power": bool(self._power_led.is_active),
             "hdd_active": bool(self._hdd_led.is_active),
-            "beep": not self._speaker.is_active,
+            "beep": bool(self._speaker.is_active) and bool(self._power_led.is_active),
             "busy": self._busy,
         }
 

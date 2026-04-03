@@ -29,7 +29,8 @@ async def test_get_status_hdd_active(gpio):
 
 @pytest.mark.asyncio
 async def test_get_status_beep(gpio):
-    gpio._speaker.pin.drive_high()
+    gpio._power_led.pin.drive_high()
+    gpio._speaker.pin.drive_low()
     status = gpio.get_status()
     assert status["beep"] is True
 
