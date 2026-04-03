@@ -219,6 +219,18 @@ curl -X POST http://<IP>:8080/reset
 | リセット | `http://<IP>:8080/reset` | POST |
 | 状態確認 | `http://<IP>:8080/status` | GET |
 
+## Scriptable ウィジェット
+
+[Scriptable](https://scriptable.app/) を使って iOS ホーム画面にウィジェットを追加できる。
+
+1. Scriptable アプリで新規スクリプトを作成
+2. [scriptable/FPBridge.js](scriptable/FPBridge.js) の内容をコピペ
+3. ホーム画面を長押し → + → Scriptable → 小ウィジェットを追加
+4. ウィジェットを長押し → 編集 → Script: **FPBridge** を選択
+
+- ウィジェット: 電源状態・HDD・ビープを表示、タップで電源トグル
+- アプリ内実行: ステータス表示 + 操作ボタン
+
 ## ライセンス
 
 MIT
