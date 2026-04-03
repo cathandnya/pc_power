@@ -1,7 +1,8 @@
 // Front Panel Bridge - Scriptable Widget
 // ホーム画面ウィジェットでPC電源状態を表示し、タップで操作
 
-const BASE_URL = "http://elise-info.local:8080";
+// ここを自分の環境に合わせて変更
+const BASE_URL = "http://<IP or hostname>:8080";
 
 // --- API ---
 
