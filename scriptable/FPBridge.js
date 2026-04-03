@@ -85,9 +85,6 @@ async function createWidget() {
 
   w.addSpacer();
 
-  // Tap to toggle
-  w.url = `${BASE_URL}/power/toggle`;
-
   return w;
 }
 
