@@ -6,33 +6,25 @@ SVG_PATH = "/Users/nya/Documents/Development/pc_power/hardware/schematic.svg"
 # Layout: Left = Zero W, Right = Motherboard
 
 def draw_switch_section(d, y, gpio_label, section_label, btn_label, header_label):
-    """PWR_SW / RST_SW: switch parallel circuit"""
+    """PWR_SW / RST_SW: GPIO and physical button both short signal to GND."""
     d += elm.Label().at((0, y)).label(f"[ {section_label} ]", fontsize=13)
 
-    # Left: Zero W GPIO
-    d += (dot := elm.Dot(open=True).at((0, y - 2)))
-    d += elm.Label().at((-1.8, y - 2)).label(f"{gpio_label}\n(Zero W)", fontsize=10)
+    # MB header signal (top left)
+    d += (mb_dot := elm.Dot(open=True).at((0, y - 2)))
+    d += elm.Label().at((-2, y - 2)).label(f"{header_label}\n(MB)", fontsize=10)
 
-    d += elm.Line().right(3).at(dot.end)
-    d += (junc1 := elm.Dot())
+    # Signal line right to junction
+    d += elm.Line().right(3).at(mb_dot.end)
+    d += (sig_junc := elm.Dot())
 
-    # Parallel physical button
-    d += elm.Line().up(1.5).at(junc1.center)
-    d += elm.Switch().right(3).label(btn_label, loc="top", fontsize=9)
-    d += elm.Line().down(1.5)
-    d += (junc2 := elm.Dot())
+    # Physical button: junction down to GND
+    d += elm.Switch().down(3).at(sig_junc.center).label(btn_label, loc="right", fontsize=9)
+    d += elm.Ground()
 
-    d += elm.Line().right(2).at(junc1.center)
-    d += elm.Line().right(3).at(junc2.center)
-
-    # Right: Motherboard header
+    # GPIO: branches right from junction
+    d += elm.Line().right(4).at(sig_junc.center)
     d += elm.Dot(open=True)
-    d += elm.Label().at((d.here[0] + 1.8, d.here[1])).label(f"{header_label}\n(MB)", fontsize=10)
-
-    d += elm.Line().down(1.5).at(junc1.center)
-    d += elm.Ground()
-    d += elm.Line().down(1.5).at(junc2.center)
-    d += elm.Ground()
+    d += elm.Label().at((d.here[0] + 1.8, d.here[1])).label(f"{gpio_label}\n(Zero W)", fontsize=10)
 
 
 def draw_divider_section(d, y, gpio_label, section_label, header_label):
