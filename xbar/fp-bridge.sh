@@ -9,9 +9,9 @@
 # ここを自分の環境に合わせて変更
 BASE_URL="http://<IP or hostname>:8080"
 
-STATUS=$(curl -s --connect-timeout 3 --max-time 5 "${BASE_URL}/status" 2>/dev/null)
+STATUS=$(curl -sf --connect-timeout 3 --max-time 5 "${BASE_URL}/status" 2>/dev/null)
 
-if [ -z "$STATUS" ]; then
+if [ -z "$STATUS" ] || [[ "$STATUS" != *'"pc_power"'* ]]; then
   echo "⏻ ? | color=#f87171"
   echo "---"
   echo "接続できません | color=#f87171"
@@ -35,9 +35,9 @@ if [[ "$STATUS" == *'"busy":true'* ]]; then
   echo "Reset | color=#444444"
   echo "Force OFF | color=#444444"
 else
-  echo "Power Toggle | bash='curl' param1='-s' param2='${BASE_URL}/power/toggle' terminal=false refresh=true"
-  echo "Reset | bash='curl' param1='-s' param2='${BASE_URL}/reset' terminal=false refresh=true"
-  echo "Force OFF | bash='curl' param1='-s' param2='${BASE_URL}/power/off' terminal=false refresh=true color=#f87171"
+  echo "Power Toggle | bash='curl' param1='-sf' param2='--connect-timeout' param3='3' param4='--max-time' param5='5' param6='${BASE_URL}/power/toggle' terminal=false refresh=true"
+  echo "Reset | bash='curl' param1='-sf' param2='--connect-timeout' param3='3' param4='--max-time' param5='5' param6='${BASE_URL}/reset' terminal=false refresh=true"
+  echo "Force OFF | bash='curl' param1='-sf' param2='--connect-timeout' param3='3' param4='--max-time' param5='5' param6='${BASE_URL}/power/off' terminal=false refresh=true color=#f87171"
 fi
 
 echo "---"

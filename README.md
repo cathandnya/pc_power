@@ -228,10 +228,13 @@ curl http://<IP>:8080/reset
 [xbar](https://xbarapp.com/) または [SwiftBar](https://github.com/swiftbar/SwiftBar) を使って macOS メニューバーに PC 電源状態を表示できる。
 
 1. [xbar/fp-bridge.sh](xbar/fp-bridge.sh) の `BASE_URL` を自分の環境に合わせて変更
-2. プラグインディレクトリにコピー（ファイル名でリフレッシュ間隔を指定）:
+2. プラグインディレクトリにコピー（ファイル名でリフレッシュ間隔を指定、例: `.5s.` = 5秒）:
    ```bash
-   cp xbar/fp-bridge.sh ~/Library/Application\ Support/SwiftBar/plugins/fp-bridge.1s.sh
-   chmod +x ~/Library/Application\ Support/SwiftBar/plugins/fp-bridge.1s.sh
+   # SwiftBar の場合
+   cp xbar/fp-bridge.sh ~/Library/Application\ Support/SwiftBar/plugins/fp-bridge.5s.sh
+
+   # xbar の場合
+   cp xbar/fp-bridge.sh ~/Library/Application\ Support/xbar/plugins/fp-bridge.5s.sh
    ```
 3. xbar / SwiftBar を起動
 
