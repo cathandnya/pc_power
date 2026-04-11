@@ -1,5 +1,7 @@
 # Front Panel Bridge
 
+[![YouTube](https://github.com/user-attachments/assets/b789b4b5-9caa-4e29-9ad1-6dc0b42ab799)](https://youtu.be/C-dJnxJGRUc)
+
 Raspberry Pi Zero W を使って、マザーボードのフロントパネルピンヘッダーを無線化するデバイス。
 
 PC電源のON/OFF/リセットをリモート操作し、電源状態・ディスクアクセス・ビープ音をWebSocketでリアルタイム配信する。Web UIとREST APIの両方に対応。
