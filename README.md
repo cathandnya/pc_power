@@ -223,6 +223,21 @@ curl http://<IP>:8080/reset
 - ウィジェット: 電源状態・HDD・ビープを表示、タップで電源トグル
 - アプリ内実行: ステータス表示 + 操作ボタン
 
+## macOS メニューバー (xbar / SwiftBar)
+
+[xbar](https://xbarapp.com/) または [SwiftBar](https://github.com/swiftbar/SwiftBar) を使って macOS メニューバーに PC 電源状態を表示できる。
+
+1. [xbar/fp-bridge.sh](xbar/fp-bridge.sh) の `BASE_URL` を自分の環境に合わせて変更
+2. プラグインディレクトリにコピー（ファイル名でリフレッシュ間隔を指定）:
+   ```bash
+   cp xbar/fp-bridge.sh ~/Library/Application\ Support/SwiftBar/plugins/fp-bridge.1s.sh
+   chmod +x ~/Library/Application\ Support/SwiftBar/plugins/fp-bridge.1s.sh
+   ```
+3. xbar / SwiftBar を起動
+
+- メニューバー: 電源状態をアイコンの色で表示（緑=ON、グレー=OFF、赤=接続エラー）
+- ドロップダウン: 電源 / HDD / ビープの詳細表示 + Power Toggle / Reset / Force OFF 操作
+
 ## 免責事項
 
 - 本プロジェクトは個人の趣味・実験目的で作成したものです
