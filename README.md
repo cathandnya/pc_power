@@ -229,17 +229,23 @@ curl http://<IP>:8080/reset
 
 [xbar](https://xbarapp.com/) または [SwiftBar](https://github.com/swiftbar/SwiftBar) を使って macOS メニューバーに PC 電源状態を表示できる。
 
-1. [xbar/fp-bridge.sh](xbar/fp-bridge.sh) の `BASE_URL` を自分の環境に合わせて変更
-2. プラグインディレクトリにコピー（ファイル名でリフレッシュ間隔を指定、例: `.5s.` = 5秒）:
+1. [xbar/fp-bridge.sh](xbar/fp-bridge.sh) 先頭の `DEFAULT_BASE_URL` を自分の環境に合わせて変更する
+   - SwiftBar のプラグイン環境変数 `FP_BRIDGE_BASE_URL` で上書きしてもよい
+2. SwiftBar で使う場合は、WebSocket 用 Python 環境 (`websockets` パッケージ入り) を見つけやすいように**シンボリックリンク**を推奨:
    ```bash
-   # SwiftBar の場合
-   cp xbar/fp-bridge.sh ~/Library/Application\ Support/SwiftBar/plugins/fp-bridge.5s.sh
-
-   # xbar の場合
+   ln -sf /absolute/path/to/pc_power/xbar/fp-bridge.sh \
+     ~/Library/Application\ Support/SwiftBar/plugins/fp-bridge.sh
+   ```
+   - コピーして使う場合は `FP_BRIDGE_ROOT=/absolute/path/to/pc_power` または `FP_BRIDGE_PYTHON=/absolute/path/to/pc_power/.venv/bin/python` を SwiftBar 側で設定する
+   - SwiftBar では streamable plugin として動くため、`.5s.sh` のようなリフレッシュ間隔付きファイル名は不要
+3. xbar で使う場合は従来どおりコピーする:
+   ```bash
    cp xbar/fp-bridge.sh ~/Library/Application\ Support/xbar/plugins/fp-bridge.5s.sh
    ```
-3. xbar / SwiftBar を起動
+4. xbar / SwiftBar を起動
 
+- SwiftBar: `/ws` を購読して状態変化時に即時更新
+- xbar: 単発表示にフォールバック（WebSocket 常駐更新なし）
 - メニューバー: 電源状態をアイコンの色で表示（緑=ON、グレー=OFF、赤=接続エラー）
 - ドロップダウン: 電源 / HDD / ビープの詳細表示 + Power Toggle / Reset / Force OFF 操作
 
