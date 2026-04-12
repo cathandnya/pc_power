@@ -14,6 +14,7 @@
 # ここを自分の環境に合わせて変更
 DEFAULT_BASE_URL="http://<IP or hostname>:8080"
 BASE_URL="${FP_BRIDGE_BASE_URL:-$DEFAULT_BASE_URL}"
+BASE_URL="${BASE_URL%/}"
 CURL_BIN="/usr/bin/curl"
 
 render_status_menu() {
@@ -145,7 +146,7 @@ if [ -z "$PYTHON_BIN" ]; then
   done
 fi
 
-exec "$PYTHON_BIN" - "$BASE_URL" <<'PY'
+exec "$PYTHON_BIN" - "$BASE_URL" "$CURL_BIN" <<'PY'
 import asyncio
 import json
 import os
@@ -156,6 +157,7 @@ from pathlib import Path
 import websockets
 
 BASE_URL = sys.argv[1].rstrip("/")
+CURL_BIN = sys.argv[2]
 WS_URL = BASE_URL.replace("http://", "ws://", 1).replace("https://", "wss://", 1) + "/ws"
 
 DATA_DIR = Path(
@@ -243,9 +245,9 @@ def build_output(status, note):
     else:
         lines.extend(
             [
-                f"Power Toggle | bash=/usr/bin/curl param1=-sf param2=--connect-timeout param3=3 param4=--max-time param5=5 param6={BASE_URL}/power/toggle terminal=false refresh=true",
-                f"Reset | bash=/usr/bin/curl param1=-sf param2=--connect-timeout param3=3 param4=--max-time param5=5 param6={BASE_URL}/reset terminal=false refresh=true",
-                f"Force OFF | bash=/usr/bin/curl param1=-sf param2=--connect-timeout param3=3 param4=--max-time param5=5 param6={BASE_URL}/power/off terminal=false refresh=true color=#f87171",
+                f"Power Toggle | bash='{CURL_BIN}' param1='-sf' param2='--connect-timeout' param3='3' param4='--max-time' param5='5' param6='{BASE_URL}/power/toggle' terminal=false refresh=true",
+                f"Reset | bash='{CURL_BIN}' param1='-sf' param2='--connect-timeout' param3='3' param4='--max-time' param5='5' param6='{BASE_URL}/reset' terminal=false refresh=true",
+                f"Force OFF | bash='{CURL_BIN}' param1='-sf' param2='--connect-timeout' param3='3' param4='--max-time' param5='5' param6='{BASE_URL}/power/off' terminal=false refresh=true color=#f87171",
             ]
         )
 
@@ -278,6 +280,11 @@ def emit(status, note):
         save_cache(status)
 
 
+async def run_in_thread(func, *args):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, func, *args)
+
+
 ACTION_PATHS = {
     "power_toggle": "/power/toggle",
     "reset": "/reset",
@@ -291,7 +298,7 @@ async def call_json(path):
             charset = response.headers.get_content_charset() or "utf-8"
             return json.loads(response.read().decode(charset))
 
-    return await asyncio.to_thread(_request)
+    return await run_in_thread(_request)
 
 
 async def handle_action(action):
@@ -326,10 +333,9 @@ async def handle_action(action):
 
 async def stdin_loop():
     while True:
-        line = await asyncio.to_thread(sys.stdin.readline)
+        line = await run_in_thread(sys.stdin.readline)
         if line == "":
-            await asyncio.sleep(1)
-            continue
+            return
 
         action = line.strip()
         if action:
