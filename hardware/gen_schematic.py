@@ -164,8 +164,9 @@ with schemdraw.Drawing(file=SVG_PATH, show=False) as d:
     d += elm.Label().at((0, -37)).label(
         "全 5 系統を PC817 で完全絶縁。Pi GND と MB GND は基板上・経路上ともに分離。\n"
         "スイッチ系: GPIO=LOW → LED 点灯 → 2 次側導通 → PWR_SW+ が MB GND へ\n"
-        "入力系: MB LED 点灯 → 1 次側 LED → 2 次側導通 → Pi 3.3V が GPIO へ → GPIO=HIGH\n"
-        "ファーム変更不要(現状の active_high / pull_up 設定のまま動作)",
+        "入力系: MB 側 LED 点灯 → 1 次側 LED → 2 次側導通 → Pi 3.3V が GPIO へ → GPIO=HIGH\n"
+        "ファーム前提: 全入力系とも pull_up=False / 出力系は active_high=False\n"
+        "(SPEAKER は LOW アクティブ駆動のため 1 次側を SPEAKER 5V ↔ SPEAKER+ に接続)",
         fontsize=8,
     )
 
