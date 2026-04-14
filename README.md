@@ -41,7 +41,7 @@ PC電源のON/OFF/リセットをリモート操作し、電源状態・ディ�
 | GPIO27 | 13 | 出力 | PC817 (RST_SW) Pin2 | 通常HIGH、操作時LOW。Pin1は330Ω経由で3.3V |
 | GPIO22 | 15 | 入力 | PC817 (PWR_LED) Pin3 | 10kΩ で Pi GND へプルダウン、Pin4 は 3.3V へ |
 | GPIO23 | 16 | 入力 | PC817 (HDD_LED) Pin3 | 同上 |
-| GPIO24 | 18 | 入力 | PC817 (SPEAKER) Pin3 | 10kΩ で Pi GND へプルダウン、Pin4 は 3.3V へ。1次側は PWR_LED+ 電源借用の特殊配線 |
+| GPIO24 | 18 | 入力 | PC817 (SPEAKER) Pin3 | 10kΩ で Pi GND へプルダウン、Pin4 は 3.3V へ。1次側は SPEAKER 5V と SPEAKER+ の間に接続 |
 | 3.3V | 1 | - | 各 PC817 の 2 次側電源 | スイッチ側は Pin1(330Ω経由)、入力側は Pin4 |
 | GND | 14 | - | Pi 側 GND | **MB GND とは完全分離** |
 
@@ -86,10 +86,10 @@ GPIO22/23 ─────┬  Pin3 (E)          Pin2 (LED K) ──────�
 
 #### SPEAKER: MB → Pi（特殊配線）
 
-マザーボードの SPEAKER ヘッダは「IDLE=HIGH(5V), ビープ時=LOW駆動」という **LOW アクティブ** 駆動なので、他の入力系と同じ配線にすると IDLE 時に 1 次側 LED が常時点灯してしまう。これを避けるため、1 次側の電源を PWR_LED+ から借用し、SPEAKER+ 側を MB GND ではなく信号線として扱う。
+マザーボードの SPEAKER ヘッダは「IDLE=HIGH(5V), ビープ時=LOW駆動」という **LOW アクティブ** 駆動なので、他の入力系と同じ配線（LED+ → 1kΩ → Pin1, Pin2 → MB GND）にすると IDLE 時に 1 次側 LED が常時点灯してしまう。これを避けるため、SPEAKER ヘッダの **+5V ピン**を 1 次側 LED の電源に使い、SPEAKER+ 側を MB GND ではなく信号線として扱う。
 
 ```
-Pi 3.3V ────────  Pin4 (C)          Pin1 (LED A) ──[1kΩ]── PWR_LED+ (MB, 5V)
+Pi 3.3V ────────  Pin4 (C)          Pin1 (LED A) ──[1kΩ]── SPEAKER 5V (MB)
                                                                          
 GPIO24 ────────┬  Pin3 (E)          Pin2 (LED K) ───────── SPEAKER+ (MB)
                │
@@ -98,13 +98,13 @@ GPIO24 ────────┬  Pin3 (E)          Pin2 (LED K) ────�
              Pi GND
 ```
 
-- IDLE時: PWR_LED+=5V, SPEAKER+=HIGH → LED両端電位差ほぼゼロ → 消灯 → 2次側開放 → GPIO24=LOW
-- ビープ時: PWR_LED+=5V, SPEAKER+=LOW → 5V→1kΩ→LED→0V で電流 → 点灯 → 2次側導通 → GPIO24=HIGH
-- PC電源OFF時: PWR_LED+=0V → LED無電源 → 消灯(PC停止中なのでビープも鳴らない)
+- IDLE時: SPEAKER 5V=5V, SPEAKER+=HIGH(5V) → LED両端電位差ほぼゼロ → 消灯 → 2次側開放 → GPIO24=LOW
+- ビープ時: SPEAKER 5V=5V, SPEAKER+=LOW駆動 → 5V→1kΩ→LED→0V で電流 → 点灯 → 2次側導通 → GPIO24=HIGH
+- PC電源OFF時: SPEAKER 5V=0V → LED無電源 → 消灯(PC停止中なのでビープも鳴らない)
 
 この構成により、SPEAKER も他の入力系と同じ **HIGH=アクティブ** で扱える。ファーム側は `pull_up=False` に変更する必要がある（従来は `pull_up=True` だった）。
 
-ビープ信号は数百Hz〜数kHz の矩形波で、PC817 の応答速度（数十µs）でも追従可能。PWR_LED+ から借りる電流は約 5mA 程度で、マザーボードの LED 駆動能力の範囲内。
+ビープ信号は数百Hz〜数kHz の矩形波で、PC817 の応答速度（数十µs）でも追従可能。電流は約 5mA 程度で、マザーボードの SPEAKER 駆動能力の範囲内。
 
 ### GND 接続について
 
@@ -131,7 +131,7 @@ SPEAKER 用 PC817 は 1 次側に MB GND を使わず、PWR_LED+ と SPEAKER+ �
 1. **基板を製作**: ユニバーサル基板にピンヘッダーをはんだ付け。Pi GND レールと MB GND レールを**物理的に分離**して配置
 2. **スイッチ系 PC817 を実装**: PWR_SW 用・RST_SW 用に PC817 を 2 個、1 次側に 330Ω を直列配置（Pi 3.3V → 330Ω → Pin1, Pin2 → GPIO）
 3. **LED 入力系 PC817 を実装**: PWR_LED / HDD_LED 用に PC817 を 2 個、1 次側に 1kΩ を直列配置（MB LED+ → 1kΩ → Pin1, Pin2 → MB GND）、2 次側は Pin4 → Pi 3.3V, Pin3 → GPIO + 10kΩ プルダウン → Pi GND
-4. **SPEAKER 用 PC817 を実装**: 1 次側は **PWR_LED+ → 1kΩ → Pin1, Pin2 → SPEAKER+**（MB GND には繋がない）、2 次側は LED 入力系と同じ（Pin4 → Pi 3.3V, Pin3 → GPIO24 + 10kΩ プルダウン → Pi GND）
+4. **SPEAKER 用 PC817 を実装**: 1 次側は **SPEAKER 5V → 1kΩ → Pin1, Pin2 → SPEAKER+**（MB GND には繋がない）、2 次側は LED 入力系と同じ（Pin4 → Pi 3.3V, Pin3 → GPIO24 + 10kΩ プルダウン → Pi GND）
 5. **ケースのボタンを接続**: 電源ボタン・リセットボタンのコネクタをスイッチ系 PC817 の 2 次側（MB GND 側）のピンヘッダーに差し込む
 6. **マザーボードと接続**: デュポンケーブルで基板からマザーボードの各ヘッダーへ接続（PWR_SW/RST_SW/PWR_LED/HDD_LED/SPEAKER + 各 MB GND）
 7. **Zero W と接続**: デュポンケーブルで基板から Zero W の各 GPIO / 3.3V / Pi GND へ接続

@@ -114,11 +114,10 @@ def draw_input_section(d, cy, gpio_label, section_label, header_label, r_limit="
 
 def draw_speaker_section(d, cy, gpio_label, section_label):
     """Speaker: マザボ側は「IDLE=HIGH(5V), ビープ=LOW駆動」の LOW アクティブ。
-    他の入力系と同じ配線にすると IDLE 時に LED 常時点灯してしまうため、
-    1 次側の電源を PWR_LED+ から拝借し、SPEAKER+ が LOW に落ちたときだけ
-    PWR_LED+(5V) → 1kΩ → LED → SPEAKER+(0V) の経路で電流が流れるようにする。
-    これによりビープ時のみ LED 点灯 → 2 次側導通 → GPIO=HIGH となり、
-    他の入力系と同じ「HIGH=アクティブ」論理で扱える。"""
+    SPEAKER ヘッダの +5V ピンを 1 次側 LED の電源として使い、SPEAKER+ が
+    LOW に落ちたときだけ SPEAKER 5V → 1kΩ → LED → SPEAKER+(0V) の経路で
+    電流が流れるようにする。これによりビープ時のみ LED 点灯 → 2 次側導通 →
+    GPIO=HIGH となり、他の入力系と同じ「HIGH=アクティブ」論理で扱える。"""
     d += elm.Label().at((0, cy + 2.5)).label(f"[ {section_label} ]", fontsize=13)
     lt, lb, rb, rt, bx_l, bx_r = draw_pc817_box(d, cy, flip_lr=True)
     # lt=Pin4, lb=Pin3, rb=Pin2, rt=Pin1
@@ -136,13 +135,13 @@ def draw_speaker_section(d, cy, gpio_label, section_label):
     d += elm.Ground().at((bx_l - 2, lb[1] - 2))
     d += elm.Label().at((bx_l - 2, lb[1] - 3.0)).label("Pi GND", fontsize=8)
 
-    # ---- 右 = MB 側(PWR_LED+ から電源を借り、SPEAKER+ 側は MB GND ではなく信号線へ) ----
-    # Pin1(右上) ← 1kΩ ← PWR_LED+(MB 5V)
+    # ---- 右 = MB 側(SPEAKER ヘッダの 5V ピンを 1 次側電源に使う) ----
+    # Pin1(右上) ← 1kΩ ← SPEAKER 5V
     d += elm.Line().at(rt).to((bx_r + 1, rt[1]))
     d += elm.Resistor().at((bx_r + 1, rt[1])).to((bx_r + 4, rt[1])).label("1kΩ", loc="top", fontsize=9)
     d += elm.Line().at((bx_r + 4, rt[1])).to((bx_r + 5, rt[1]))
     d += elm.Dot(open=True).at((bx_r + 5, rt[1]))
-    d += elm.Label().at((bx_r + 6.5, rt[1])).label("PWR_LED+\n(MB, 5V)", fontsize=10)
+    d += elm.Label().at((bx_r + 6.5, rt[1])).label("SPEAKER 5V\n(MB)", fontsize=10)
 
     # Pin2(右下) → SPEAKER+(MB 信号)
     d += elm.Line().at(rb).to((bx_r + 5, rb[1]))
