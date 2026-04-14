@@ -76,13 +76,10 @@ def draw_switch_section(d, cy, gpio_label, section_label, btn_label, header_labe
     d += elm.Ground().at((btn_x, rt[1] - 3))
     d += elm.Label().at((btn_x, rt[1] - 4.0)).label("MB GND", fontsize=8)
 
-def draw_input_section(d, cy, gpio_label, section_label, header_label, r_limit="1kΩ"):
-    """PWR_LED / HDD_LED / SPEAKER: 左 = Pi(Pin4/Pin3), 右 = MB(Pin1/Pin2)。"""
-    d += elm.Label().at((0, cy + 2.5)).label(f"[ {section_label} ]", fontsize=13)
-    lt, lb, rb, rt, bx_l, bx_r = draw_pc817_box(d, cy, flip_lr=True)
-    # lt=Pin4, lb=Pin3, rb=Pin2, rt=Pin1
 
-    # ---- 左 = Pi 側 ----
+def _draw_input_pi_side(d, lt, lb, bx_l, gpio_label):
+    """入力系 PC817 の 2 次側(Pi 側)を描画する共通ヘルパー。
+    左上(Pin4) ← Pi 3.3V、左下(Pin3) → GPIO + 10kΩ プルダウン → Pi GND。"""
     # Pin4(左上) ← Pi 3.3V
     d += elm.Line().at(lt).to((bx_l - 5, lt[1]))
     d += elm.Dot(open=True).at((bx_l - 5, lt[1]))
@@ -96,6 +93,18 @@ def draw_input_section(d, cy, gpio_label, section_label, header_label, r_limit="
     d += elm.Resistor().at((bx_l - 2, lb[1])).to((bx_l - 2, lb[1] - 2)).label("10kΩ", loc="right", fontsize=9)
     d += elm.Ground().at((bx_l - 2, lb[1] - 2))
     d += elm.Label().at((bx_l - 2, lb[1] - 3.0)).label("Pi GND", fontsize=8)
+
+
+def draw_input_section(d, cy, gpio_label, section_label, header_label, r_limit="1kΩ"):
+    """PWR_LED / HDD_LED 用: 左 = Pi(Pin4/Pin3), 右 = MB(Pin1/Pin2)。
+    MB 側 LED+(5V) → 1kΩ → Pin1, Pin2 → MB GND で 1 次側を駆動し、
+    マザボ側点灯時に 2 次側が導通して GPIO=HIGH になる。
+    SPEAKER は LOW アクティブ駆動のため draw_speaker_section を使うこと。"""
+    d += elm.Label().at((0, cy + 2.5)).label(f"[ {section_label} ]", fontsize=13)
+    lt, lb, rb, rt, bx_l, bx_r = draw_pc817_box(d, cy, flip_lr=True)
+    # lt=Pin4, lb=Pin3, rb=Pin2, rt=Pin1
+
+    _draw_input_pi_side(d, lt, lb, bx_l, gpio_label)
 
     # ---- 右 = MB 側 ----
     # Pin1(右上) ← 制限抵抗 ← header+(5V)
@@ -122,18 +131,7 @@ def draw_speaker_section(d, cy, gpio_label, section_label):
     lt, lb, rb, rt, bx_l, bx_r = draw_pc817_box(d, cy, flip_lr=True)
     # lt=Pin4, lb=Pin3, rb=Pin2, rt=Pin1
 
-    # ---- 左 = Pi 側(他の入力系と同じ) ----
-    d += elm.Line().at(lt).to((bx_l - 5, lt[1]))
-    d += elm.Dot(open=True).at((bx_l - 5, lt[1]))
-    d += elm.Label().at((bx_l - 6.5, lt[1])).label("3.3V\n(Zero W)", fontsize=10)
-
-    d += elm.Line().at(lb).to((bx_l - 5, lb[1]))
-    d += elm.Dot(open=True).at((bx_l - 5, lb[1]))
-    d += elm.Label().at((bx_l - 6.5, lb[1])).label(f"{gpio_label}\n(Zero W)", fontsize=10)
-    d += elm.Dot().at((bx_l - 2, lb[1]))
-    d += elm.Resistor().at((bx_l - 2, lb[1])).to((bx_l - 2, lb[1] - 2)).label("10kΩ", loc="right", fontsize=9)
-    d += elm.Ground().at((bx_l - 2, lb[1] - 2))
-    d += elm.Label().at((bx_l - 2, lb[1] - 3.0)).label("Pi GND", fontsize=8)
+    _draw_input_pi_side(d, lt, lb, bx_l, gpio_label)
 
     # ---- 右 = MB 側(SPEAKER ヘッダの 5V ピンを 1 次側電源に使う) ----
     # Pin1(右上) ← 1kΩ ← SPEAKER 5V
