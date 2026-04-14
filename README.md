@@ -120,7 +120,7 @@ Pi GND と MB GND は **基板上でも経路上でも一切接続しない**。
 - 物理ボタン（PWR BTN / RST BTN）の GND 側
 - マザーボードのフロントパネル PWR_SW- / RST_SW- / PWR_LED- / HDD_LED- ヘッダー
 
-SPEAKER 用 PC817 は 1 次側に MB GND を使わず、PWR_LED+ と SPEAKER+ の間に接続される（上記 SPEAKER セクション参照）。
+SPEAKER 用 PC817 は 1 次側に MB GND を使わず、SPEAKER ヘッダの +5V ピンと SPEAKER+ の間に接続される（上記 SPEAKER セクション参照）。
 
 ユニバーサル基板上で Pi GND レールと MB GND レールを物理的に分けて配線する。両者を結ぶ配線・ジャンパ・GND プレーンは一切設けないこと。
 
@@ -172,9 +172,9 @@ Zero Wでアプリを起動した状態で、MB 側端子に Pi の電源を一�
 |--------|------|--------|
 | PWR_LED | Pi 3.3V/5V → MB 側 PWR_LED+、Pi GND → MB GND を一時接続 | Web UI の電源アイコン点灯 |
 | HDD_LED | Pi 3.3V/5V → MB 側 HDD_LED+、Pi GND → MB GND を一時接続 | Web UI のディスクアイコン点灯 |
-| SPEAKER | (前提として PWR_LED+ が 5V 供給されている状態で)  Pi GND → MB 側 SPEAKER+、Pi GND → MB GND を一時接続 | Web UI のビープアイコン点灯 |
+| SPEAKER | Pi 3.3V/5V → MB 側 SPEAKER 5V ピン、Pi GND → MB 側 SPEAKER+、Pi GND → MB GND を一時接続 | Web UI のビープアイコン点灯 |
 
-注意: 本構成は運用時は Pi GND と MB GND が完全分離されているが、このテスト手順ではジャンパー線で一時的に両 GND を接続する。テスト終了後は必ずジャンパーを外すこと。SPEAKER は「SPEAKER+ が LOW に落ちたときビープ」というマザボ挙動を模擬するため、PWR_LED+ に 5V、SPEAKER+ を Pi GND へ落として確認する。
+注意: 本構成は運用時は Pi GND と MB GND が完全分離されているが、このテスト手順ではジャンパー線で一時的に両 GND を接続する。テスト終了後は必ずジャンパーを外すこと。SPEAKER は「SPEAKER+ が LOW に落ちたときビープ」というマザボ挙動を模擬するため、SPEAKER 5V ピン側に 5V、SPEAKER+ を Pi GND へ落として確認する。
 
 #### 出力ピンの確認（導通モード）
 
