@@ -19,7 +19,7 @@ class GPIOController:
         # 入力: プルダウン
         self._power_led = InputDevice(config.PIN_POWER_LED, pull_up=False)
         self._hdd_led = InputDevice(config.PIN_HDD_LED, pull_up=False)
-        self._speaker = InputDevice(config.PIN_SPEAKER, pull_up=True)
+        self._speaker = InputDevice(config.PIN_SPEAKER, pull_up=False)
 
         self._busy = False
         self._on_change = None
