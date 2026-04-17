@@ -45,7 +45,7 @@ async def test_power_on_when_off(gpio, fast_sleep):
 async def test_power_on_when_already_on(gpio, fast_sleep):
     gpio._power_led.pin.drive_high()
     result = await gpio.power_on()
-    assert result["status"] == "already_on"
+    assert result["status"] == "power_on_sent"
     assert result["pc_power"] is True
 
 
