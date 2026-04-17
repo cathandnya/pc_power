@@ -62,8 +62,6 @@ class GPIOController:
                 self._power_led.pin.drive_low()
 
     async def power_on(self):
-        if self._power_led.is_active:
-            return {"status": "already_on", "pc_power": True}
         await self._pulse(self._power_sw, config.PULSE_POWER_ON)
         self._mock_set_power(True)
         return {"status": "power_on_sent", "pc_power": self._power_led.is_active}
