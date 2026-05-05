@@ -21,10 +21,14 @@ def gpio():
     ctrl._busy = False
     ctrl._prev_state = None
     ctrl._on_change = None
+    ctrl._edge_count = 0
+    ctrl._beep_active = False
     # Reset input pins to LOW
     ctrl._power_led.pin.drive_low()
     ctrl._hdd_led.pin.drive_low()
     ctrl._speaker.pin.drive_low()
+    # Drain the edge that the drive_low() above may have produced via the callback
+    ctrl._edge_count = 0
     yield ctrl
 
 

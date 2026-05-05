@@ -1,8 +1,10 @@
 import asyncio
 import os
 import random
+import threading
+import time
 import logging
-from gpiozero import OutputDevice, InputDevice
+from gpiozero import OutputDevice, InputDevice, DigitalInputDevice
 from app import config
 
 logger = logging.getLogger(__name__)
@@ -19,13 +21,21 @@ class GPIOController:
         # 入力: プルダウン
         self._power_led = InputDevice(config.PIN_POWER_LED, pull_up=False)
         self._hdd_led = InputDevice(config.PIN_HDD_LED, pull_up=False)
-        self._speaker = InputDevice(config.PIN_SPEAKER, pull_up=False)
+        # SPEAKER は矩形波エッジ検知のため DigitalInputDevice (when_activated/when_deactivated 対応)
+        self._speaker = DigitalInputDevice(config.PIN_SPEAKER, pull_up=False)
 
         self._busy = False
         self._on_change = None
 
         # 前回の状態（変化検出用）
         self._prev_state = None
+
+        # ビープ検知（矩形波）: gpiozero のエッジコールバックは別スレッドから呼ばれる
+        self._edge_count = 0
+        self._edge_lock = threading.Lock()
+        self._beep_active = False
+        self._speaker.when_activated = self._on_speaker_edge
+        self._speaker.when_deactivated = self._on_speaker_edge
 
     @property
     def busy(self):
@@ -35,7 +45,7 @@ class GPIOController:
         return {
             "pc_power": bool(self._power_led.is_active),
             "hdd_active": bool(self._hdd_led.is_active),
-            "beep": bool(self._speaker.is_active) and bool(self._power_led.is_active),
+            "beep": self._beep_active and bool(self._power_led.is_active),
             "busy": self._busy,
         }
 
@@ -82,11 +92,38 @@ class GPIOController:
             asyncio.create_task(self._mock_beep())
         return {"status": "reset_sent", "pc_power": self._power_led.is_active}
 
-    async def _mock_beep(self):
-        """Mock mode: simulate POST beep on reset."""
-        self._speaker.pin.drive_high()
-        await asyncio.sleep(0.3)
-        self._speaker.pin.drive_low()
+    def _on_speaker_edge(self, _device=None):
+        """SPEAKER GPIO のエッジコールバック（gpiozero の別スレッドから呼ばれる）。"""
+        with self._edge_lock:
+            self._edge_count += 1
+
+    def _evaluate_beep_once(self):
+        """直近窓のエッジ数を評価し、_beep_active を更新する。"""
+        with self._edge_lock:
+            count = self._edge_count
+            self._edge_count = 0
+        self._beep_active = count >= config.BEEP_EDGE_THRESHOLD
+
+    async def _beep_evaluator(self):
+        """エッジ数を BEEP_EVAL_INTERVAL ごとに評価して beep 状態を更新する。"""
+        logger.info(
+            "Beep detector started (window=%sms threshold=%d)",
+            int(config.BEEP_EVAL_INTERVAL * 1000),
+            config.BEEP_EDGE_THRESHOLD,
+        )
+        while True:
+            await asyncio.sleep(config.BEEP_EVAL_INTERVAL)
+            self._evaluate_beep_once()
+
+    async def _mock_beep(self, freq_hz=1000, duration=0.3):
+        """Mock mode: simulate POST beep as a square wave on the SPEAKER pin."""
+        half_period = 0.5 / freq_hz
+        end = time.monotonic() + duration
+        while time.monotonic() < end:
+            self._speaker.pin.drive_high()
+            await asyncio.sleep(half_period)
+            self._speaker.pin.drive_low()
+            await asyncio.sleep(half_period)
 
     async def _mock_hdd_activity(self):
         """Mock mode: simulate random HDD LED activity while PC is ON."""
@@ -103,6 +140,7 @@ class GPIOController:
     async def monitor(self):
         """GPIO入力を監視し、変化時にコールバックを呼ぶ"""
         logger.info("GPIO monitor started (interval: %sms)", int(config.MONITOR_INTERVAL * 1000))
+        asyncio.create_task(self._beep_evaluator())
         if MOCK_MODE:
             asyncio.create_task(self._mock_hdd_activity())
         while True:
@@ -116,6 +154,8 @@ class GPIOController:
             await asyncio.sleep(config.MONITOR_INTERVAL)
 
     def cleanup(self):
+        self._speaker.when_activated = None
+        self._speaker.when_deactivated = None
         self._power_sw.close()
         self._reset_sw.close()
         self._power_led.close()

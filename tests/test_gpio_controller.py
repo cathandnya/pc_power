@@ -29,10 +29,62 @@ async def test_get_status_hdd_active(gpio):
 
 @pytest.mark.asyncio
 async def test_get_status_beep(gpio):
+    # 矩形波検知方式では _beep_active が True かつ PWR_LED HIGH のとき beep=True
     gpio._power_led.pin.drive_high()
-    gpio._speaker.pin.drive_high()
+    gpio._beep_active = True
     status = gpio.get_status()
     assert status["beep"] is True
+
+
+@pytest.mark.asyncio
+async def test_beep_not_detected_on_static_high(gpio):
+    # HIGH に固定されているだけ（エッジなし）では beep にならない
+    gpio._power_led.pin.drive_high()
+    gpio._speaker.pin.drive_high()
+    gpio._edge_count = 0
+    gpio._evaluate_beep_once()
+    assert gpio.get_status()["beep"] is False
+
+
+@pytest.mark.asyncio
+async def test_beep_detected_on_edges(gpio):
+    from app import config as cfg
+    gpio._power_led.pin.drive_high()
+    gpio._edge_count = cfg.BEEP_EDGE_THRESHOLD
+    gpio._evaluate_beep_once()
+    assert gpio.get_status()["beep"] is True
+
+
+@pytest.mark.asyncio
+async def test_beep_clears_after_silence(gpio):
+    from app import config as cfg
+    gpio._power_led.pin.drive_high()
+    gpio._edge_count = cfg.BEEP_EDGE_THRESHOLD
+    gpio._evaluate_beep_once()
+    assert gpio.get_status()["beep"] is True
+    # 次の窓でエッジゼロなら False に戻る
+    gpio._edge_count = 0
+    gpio._evaluate_beep_once()
+    assert gpio.get_status()["beep"] is False
+
+
+@pytest.mark.asyncio
+async def test_beep_requires_power_led(gpio):
+    from app import config as cfg
+    # 電源 OFF 時はエッジが多くても beep=False（ノイズ・誤検出防止）
+    gpio._edge_count = cfg.BEEP_EDGE_THRESHOLD * 10
+    gpio._evaluate_beep_once()
+    assert gpio._beep_active is True
+    assert gpio.get_status()["beep"] is False
+
+
+@pytest.mark.asyncio
+async def test_on_speaker_edge_increments_count(gpio):
+    gpio._edge_count = 0
+    gpio._on_speaker_edge()
+    gpio._on_speaker_edge()
+    gpio._on_speaker_edge()
+    assert gpio._edge_count == 3
 
 
 @pytest.mark.asyncio
