@@ -25,59 +25,128 @@ PC電源のON/OFF/リセットをリモート操作し、電源状態・ディ�
 | USB内部ケーブル | 1 | MB内部USBヘッダー → Zero W PWR端子 |
 | デュポンケーブル（メス-メス）| 10本 | Zero W ↔ 基板 ↔ マザーボード |
 | ピンヘッダー 2.54mm（オス）| 10本 | 基板上の中継端子 |
-| 抵抗 3.3kΩ | 2 | PWR_LED / HDD_LED 分圧（下側） |
-| 抵抗 6.8kΩ | 2 | PWR_LED / HDD_LED 分圧（上側） |
-| 抵抗 10kΩ | 1 | SPEAKER クランプ |
-| ユニバーサル基板（小型） | 1 | 中継ボード・分圧回路 |
+| フォトカプラ PC817 | 5 | 全 5 系統（PWR_SW/RST_SW/PWR_LED/HDD_LED/SPEAKER）の絶縁 |
+| 抵抗 330Ω | 2 | PWR_SW/RST_SW 側 PC817 LED 電流制限 |
+| 抵抗 1kΩ | 3 | PWR_LED/HDD_LED/SPEAKER 側 PC817 LED 電流制限 |
+| 抵抗 10kΩ | 3 | PWR_LED/HDD_LED/SPEAKER 側 Pi プルダウン |
+| ユニバーサル基板（小型） | 1 | 中継ボード |
 
 ## GPIO 割り当て
 
+全 5 系統とも PC817 フォトカプラで絶縁されている。Pi 側の接続先はすべてフォトカプラの 2 次側（MB GND には触れない）。
+
 | GPIO | Pin番号 | 方向 | 接続先 | 備考 |
 |------|---------|------|--------|------|
-| GPIO17 | 11 | 出力 | PWR_SW ヘッダー | 通常Hi-Z、操作時LOW |
-| GPIO27 | 13 | 出力 | RST_SW ヘッダー | 通常Hi-Z、操作時LOW |
-| GND | 14 | - | 共通GND | マザーボード各ヘッダーのGNDと共通 |
-| GPIO22 | 15 | 入力 | PWR_LED ヘッダー | 分圧抵抗経由 |
-| GPIO23 | 16 | 入力 | HDD_LED ヘッダー | 分圧抵抗経由 |
-| GPIO24 | 18 | 入力 | SPEAKER ヘッダー | 10kΩクランプ経由（5V/3.3V両対応） |
+| GPIO17 | 11 | 出力 | PC817 (PWR_SW) Pin2 | 通常HIGH、操作時LOW。Pin1は330Ω経由で3.3V |
+| GPIO27 | 13 | 出力 | PC817 (RST_SW) Pin2 | 通常HIGH、操作時LOW。Pin1は330Ω経由で3.3V |
+| GPIO22 | 15 | 入力 | PC817 (PWR_LED) Pin3 | 10kΩ で Pi GND へプルダウン、Pin4 は 3.3V へ |
+| GPIO23 | 16 | 入力 | PC817 (HDD_LED) Pin3 | 同上 |
+| GPIO24 | 18 | 入力 | PC817 (SPEAKER) Pin3 | 10kΩ で Pi GND へプルダウン、Pin4 は 3.3V へ。1次側は SPEAKER 5V と SPEAKER+ の間に接続 |
+| 3.3V | 1 | - | 各 PC817 の 2 次側電源 | スイッチ側は Pin1(330Ω経由)、入力側は Pin4 |
+| GND | 14 | - | Pi 側 GND | **MB GND とは完全分離** |
 
 ## 回路図
 
 ![回路図](hardware/schematic.svg)
 
-### 分圧回路（PWR_LED / HDD_LED 共通）
+### 完全絶縁（全 5 系統 PC817）
 
-マザーボードのLEDヘッダーは5V出力の場合があるため、分圧抵抗でGPIOを保護する。
+Zero W 故障時にマザーボードを巻き添えにしないよう、フロントパネルとやり取りする全信号をフォトカプラ PC817 で絶縁する。Pi GND と MB GND は一切接続せず、光結合のみで信号が渡る。
+
+#### スイッチ系（PWR_SW / RST_SW）: Pi → MB
 
 ```
-LED+ (5V) ── 6.8kΩ ──┬── GPIO (≈1.65V)
-                      │
-                    3.3kΩ
-                      │
-                     GND
+Pi 3.3V ──[330Ω]── Pin1 (LED A)
+                                           PWR_SW+ / RST_SW+ (MB)
+                                                  │
+GPIO17/27 ────────  Pin2 (LED K)      Pin4 ───────┤
+                                                  │
+                      ≋≋ 光結合 ≋≋           物理ボタン(任意)
+                                                  │
+                                       Pin3 ──────┤
+                                                  │
+                                               MB GND
 ```
 
-### GND接続について
+PC817 の 2 次側（Pin4 ↔ Pin3）と物理ボタンが **PWR_SW+ と MB GND の間に並列** に入る。GPIO を `OUTPUT HIGH` で待機し、押下時のみ `OUTPUT LOW` にすると 1 次側 LED に電流が流れ、2 次側が導通して PWR_SW+ が MB GND へ短絡される（GPIO=LOW=押下）。
 
-Zero W の GND とマザーボードの各ヘッダーの GND（PWR_SW-, RST_SW-, PWR_LED-, HDD_LED-, SPEAKER-）は**すべて共通**でなければならない。
+#### 入力系（PWR_LED / HDD_LED）: MB → Pi
 
-ユニバーサル基板上で GND レールを1本作り、以下をすべて接続する:
+```
+Pi 3.3V ────────  Pin4 (C)          Pin1 (LED A) ──[1kΩ]── PWR_LED+ / HDD_LED+ (MB, 5V)
+                                                                         
+GPIO22/23 ─────┬  Pin3 (E)          Pin2 (LED K) ───────── MB GND
+               │
+            [10kΩ]       ≋≋ 光結合 ≋≋
+               │
+             Pi GND
+```
 
+マザーボード側が点灯（5V出力）すると 1 次側 LED が光り、2 次側が導通して Pi 3.3V が GPIO に流れ込み **GPIO=HIGH** になる。マザボ側 OFF 時は 10kΩ プルダウンで **GPIO=LOW**。ファームは `pull_up=False`（HIGH=アクティブ）で動作する。
+
+#### SPEAKER: MB → Pi（特殊配線）
+
+マザーボードの SPEAKER ヘッダは「IDLE=HIGH(5V), ビープ時=LOW駆動」という **LOW アクティブ** 駆動なので、他の入力系と同じ配線（LED+ → 1kΩ → Pin1, Pin2 → MB GND）にすると IDLE 時に 1 次側 LED が常時点灯してしまう。これを避けるため、SPEAKER ヘッダの **+5V ピン**を 1 次側 LED の電源に使い、SPEAKER+ 側を MB GND ではなく信号線として扱う。
+
+```
+Pi 3.3V ────────  Pin4 (C)          Pin1 (LED A) ──[1kΩ]── SPEAKER 5V (MB)
+                                                                         
+GPIO24 ────────┬  Pin3 (E)          Pin2 (LED K) ───────── SPEAKER+ (MB)
+               │
+            [10kΩ]       ≋≋ 光結合 ≋≋
+               │
+             Pi GND
+```
+
+- IDLE時: SPEAKER 5V=5V, SPEAKER+=HIGH(5V) → LED両端電位差ほぼゼロ → 消灯 → 2次側開放 → GPIO24=LOW
+- ビープ時: SPEAKER 5V=5V, SPEAKER+=LOW駆動 → 5V→1kΩ→LED→0V で電流 → 点灯 → 2次側導通 → GPIO24=HIGH
+- PC電源OFF時: SPEAKER 5V=0V → LED無電源 → 消灯(PC停止中なのでビープも鳴らない)
+
+この構成により、SPEAKER も他の入力系と同じ **HIGH=アクティブ** で扱える。ファーム側は `pull_up=False` に変更する必要がある（従来は `pull_up=True` だった）。
+
+ビープ信号は数百Hz〜数kHz の矩形波で、PC817 の応答速度（数十µs）でも追従可能。電流は約 5mA 程度で、マザーボードの SPEAKER 駆動能力の範囲内。
+
+##### ビープ検出の仕組み
+
+PC スピーカーは矩形波でコイルを駆動するタイプのため、ビープ中は GPIO24 も同じ周波数で HIGH ↔ LOW を繰り返す。本実装では gpiozero の `DigitalInputDevice` を使い、`when_activated` / `when_deactivated` コールバックで GPIO24 の立ち上がり・立ち下がりエッジをカウントする。`BEEP_EVAL_INTERVAL` (100ms) ごとに直近窓のエッジ数を評価し、`BEEP_EDGE_THRESHOLD` (20 エッジ ≒ 100Hz 相当) 以上であれば `beep=True` と判定する。
+
+- 瞬時値サンプリングではなくエッジカウントで判定するため、矩形波が来ていれば確定的に検出できる
+- HIGH/LOW に張り付いたままの状態ではエッジが発生しないので `beep=False` のまま（ノイズ・誤検出に強い）
+- PC 電源 OFF 時の誤検出を防ぐため、`PWR_LED` HIGH と AND 条件にしている
+- 連続ビープと短いビープの区別はつかない（Web UI には単に「鳴っている／いない」としか出ない）
+
+しきい値・窓サイズは `app/config.py` の `BEEP_WINDOW` / `BEEP_EVAL_INTERVAL` / `BEEP_EDGE_THRESHOLD` で調整できる。
+
+### GND 接続について
+
+Pi GND と MB GND は **基板上でも経路上でも一切接続しない**。全 5 系統の信号はフォトカプラの光結合のみで渡る。
+
+**Pi GND**（Zero W 側）
 - Zero W の GND ピン（Pin 6, 9, 14, 20, 25, 30, 34, 39 のいずれか）
-- 分圧回路の 3.3kΩ 下端
-- SPEAKER の 10kΩ クランプの GND 側
-- マザーボード各ヘッダーの GND 側（デュポンケーブル経由）
+- 入力系 PC817 (×3) の Pin3 に繋がる 10kΩ プルダウンの下端
+
+**MB GND**（マザーボード側）
+- スイッチ系 PC817 (×2) の Pin3（Emitter）
+- PWR_LED / HDD_LED 用 PC817 (×2) の Pin2（1 次側 LED K）
+- 物理ボタン（PWR BTN / RST BTN）の GND 側
+- マザーボードのフロントパネル PWR_SW- / RST_SW- / PWR_LED- / HDD_LED- ヘッダー
+
+SPEAKER 用 PC817 は 1 次側に MB GND を使わず、SPEAKER ヘッダの +5V ピンと SPEAKER+ の間に接続される（上記 SPEAKER セクション参照）。
+
+ユニバーサル基板上で Pi GND レールと MB GND レールを物理的に分けて配線する。両者を結ぶ配線・ジャンパ・GND プレーンは一切設けないこと。
 
 ## 配線
 
 ### 接続手順
 
-1. **基板を製作**: ユニバーサル基板にピンヘッダーをはんだ付け（PWR_SW / RST_SW / HDD_LED 各2本、SPEAKER 2本）
-2. **分圧回路を実装**: PWR_LED用・HDD_LED用の分圧回路を基板上にはんだ付け
-3. **ケースのボタンを接続**: 電源ボタン・リセットボタンのコネクタをピンヘッダーに差し込む
-4. **マザーボードと接続**: デュポンケーブルで基板からマザーボードの各ヘッダーへ接続
-5. **Zero W と接続**: デュポンケーブルで基板から Zero W の各GPIOへ接続
-6. **Zero W を給電**: マザーボード内部USBヘッダーから Zero W の PWR端子（OTG側ではない方）に接続
+1. **基板を製作**: ユニバーサル基板にピンヘッダーをはんだ付け。Pi GND レールと MB GND レールを**物理的に分離**して配置
+2. **スイッチ系 PC817 を実装**: PWR_SW 用・RST_SW 用に PC817 を 2 個、1 次側に 330Ω を直列配置（Pi 3.3V → 330Ω → Pin1, Pin2 → GPIO）
+3. **LED 入力系 PC817 を実装**: PWR_LED / HDD_LED 用に PC817 を 2 個、1 次側に 1kΩ を直列配置（MB LED+ → 1kΩ → Pin1, Pin2 → MB GND）、2 次側は Pin4 → Pi 3.3V, Pin3 → GPIO + 10kΩ プルダウン → Pi GND
+4. **SPEAKER 用 PC817 を実装**: 1 次側は **SPEAKER 5V → 1kΩ → Pin1, Pin2 → SPEAKER+**（MB GND には繋がない）、2 次側は LED 入力系と同じ（Pin4 → Pi 3.3V, Pin3 → GPIO24 + 10kΩ プルダウン → Pi GND）
+5. **ケースのボタンを接続**: 電源ボタン・リセットボタンのコネクタをスイッチ系 PC817 の 2 次側（MB GND 側）のピンヘッダーに差し込む
+6. **マザーボードと接続**: デュポンケーブルで基板からマザーボードの各ヘッダーへ接続（PWR_SW/RST_SW/PWR_LED/HDD_LED/SPEAKER + 各 MB GND）
+7. **Zero W と接続**: デュポンケーブルで基板から Zero W の各 GPIO / 3.3V / Pi GND へ接続
+8. **Zero W を給電**: マザーボード内部USBヘッダーから Zero W の PWR端子（OTG側ではない方）に接続
 
 ### 給電について
 
@@ -106,43 +175,38 @@ cd pc_power
 
 マルチメーターを使って、マザーボードに接続する前に各回路を検証する。
 
-#### 分圧回路の確認（電圧モード）
+#### 入力系 PC817 の確認（Web UI反映）
 
-ユニバーサル基板上の分圧回路にZero Wの5V（Pin 2）から入力し、中点の電圧を測定する。
-
-| 入力 | 測定箇所 | 期待値 |
-|------|---------|--------|
-| Pin 2 (5V) → 6.8kΩ入力側 | 3.3kΩ上端（GPIO接続点） | ≈1.65V |
-
-#### 入力ピンの確認（Web UI反映）
-
-Zero Wでアプリを起動した状態で、Pin 2（5V）からジャンパー線で各入力回路にテスト信号を入れる。
+Zero Wでアプリを起動した状態で、MB 側端子に Pi の電源を一時的に当てて 1 次側 LED を駆動し、2 次側の GPIO が変化するかを確認する。戻り電流経路を作るため、**Pi GND と MB GND を一時的に接続**する必要がある。
 
 | テスト | 方法 | 期待値 |
 |--------|------|--------|
-| PWR_LED | 5V → 分圧回路入力 → GPIO22 | Web UI の電源アイコン点灯 |
-| HDD_LED | 5V → 分圧回路入力 → GPIO23 | Web UI のディスクアイコン点灯 |
-| SPEAKER | 3.3V (Pin 1) → 10kΩ → GPIO24 | Web UI のビープアイコン点灯 |
+| PWR_LED | Pi 3.3V/5V → MB 側 PWR_LED+、Pi GND → MB GND を一時接続 | Web UI の電源アイコン点灯 |
+| HDD_LED | Pi 3.3V/5V → MB 側 HDD_LED+、Pi GND → MB GND を一時接続 | Web UI のディスクアイコン点灯 |
+| SPEAKER | Pi 3.3V/5V → MB 側 SPEAKER 5V ピン、Pi GND → MB 側 SPEAKER+、Pi GND → MB GND を一時接続 | Web UI のビープアイコン点灯 |
 
-#### 出力ピンの確認（電圧モード）
+注意: 本構成は運用時は Pi GND と MB GND が完全分離されているが、このテスト手順ではジャンパー線で一時的に両 GND を接続する。テスト終了後は必ずジャンパーを外すこと。SPEAKER は「SPEAKER+ が LOW に落ちたときビープ」というマザボ挙動を模擬するため、SPEAKER 5V ピン側に 5V、SPEAKER+ を Pi GND へ落として確認する。
 
-APIを叩きながら、マルチメーターでGPIOピンの電圧を測定する。
+#### 出力ピンの確認（導通モード）
 
-| 状態 | 測定 (GPIO ↔ GND) | 期待値 |
-|------|-------------------|--------|
-| 通常時 | GPIO17 | ハイインピーダンス（不安定な値） |
-| `curl http://<IP>:8080/power/toggle` 中 | GPIO17 | ≈0V (LOW) |
-| 通常時 | GPIO27 | ハイインピーダンス |
-| `curl http://<IP>:8080/reset` 中 | GPIO27 | ≈0V (LOW) |
+PC817 を介しているため GPIO の電圧ではなく、**2 次側（PWR_SW+ ↔ MB GND）の導通**をマルチメーターで確認する。
+
+| 状態 | 測定 (PWR_SW+ ↔ MB GND) | 期待値 |
+|------|-------------------------|--------|
+| 通常時 | PC817 Pin4 ↔ Pin3 | 開放（∞Ω） |
+| `curl http://<IP>:8080/power/toggle` 中 | PC817 Pin4 ↔ Pin3 | 導通（数百Ω以下） |
+| 通常時 | RST_SW+ 側 Pin4 ↔ Pin3 | 開放 |
+| `curl http://<IP>:8080/reset` 中 | RST_SW+ 側 Pin4 ↔ Pin3 | 導通 |
+
+GPIO 側（1次側）の電圧を測る場合は、GPIO17/27 と **Pi GND** の間で測る（MB GND ではない）。通常時は ≈3.3V (HIGH)、操作時は ≈0V (LOW)。
 
 #### テスト手順まとめ
 
-1. Zero W にOS + アプリをインストール、起動
-2. ブラウザで `http://<IP>:8080` にアクセスして Web UI 表示を確認
-3. 分圧回路の出力電圧をマルチメーターで確認
-4. 3.3V ピンから入力して Web UI のインジケーターが反応するか確認
-5. API を叩いて GPIO17/27 が LOW になるかマルチメーターで確認
-6. すべて OK ならマザーボードに接続
+1. Zero W に OS + アプリをインストールし起動、ブラウザで `http://<IP>:8080` を開いて Web UI が表示されることを確認
+2. マザーボード未接続の状態で、Pi GND ↔ MB GND 間をマルチメーター導通モードで測定し、**絶縁されていること(開放)** を確認
+3. 入力系のテーブル手順で各 PC817 の 1 次側を駆動し、Web UI のインジケーターが期待通り変化するか確認(テスト終了後はジャンパーを必ず外す)
+4. API (`/power/toggle`, `/reset`) を叩きながら、スイッチ系 PC817 の 2 次側(Pin4 ↔ Pin3)が導通するかを導通モードで確認
+5. 全て OK ならマザーボードに接続
 
 ### 4. 動作確認
 

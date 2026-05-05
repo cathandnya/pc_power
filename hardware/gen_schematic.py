@@ -1,94 +1,188 @@
+import re
+from pathlib import Path
+
 import schemdraw
 import schemdraw.elements as elm
 
-SVG_PATH = "/Users/nya/Documents/Development/pc_power/hardware/schematic.svg"
-
-# Layout: Left = Zero W, Right = Motherboard
-
-def draw_switch_section(d, y, gpio_label, section_label, btn_label, header_label):
-    """PWR_SW / RST_SW: GPIO and physical button both short signal to GND."""
-    d += elm.Label().at((0, y)).label(f"[ {section_label} ]", fontsize=13)
-
-    # MB header signal (top left)
-    d += (mb_dot := elm.Dot(open=True).at((0, y - 2)))
-    d += elm.Label().at((-2, y - 2)).label(f"{header_label}\n(MB)", fontsize=10)
-
-    # Signal line right to junction
-    d += elm.Line().right(3).at(mb_dot.end)
-    d += (sig_junc := elm.Dot())
-
-    # Physical button: junction down to GND
-    d += elm.Switch().down(3).at(sig_junc.center).label(btn_label, loc="right", fontsize=9)
-    d += elm.Ground()
-
-    # GPIO: branches right from junction
-    d += elm.Line().right(4).at(sig_junc.center)
-    d += elm.Dot(open=True)
-    d += elm.Label().at((d.here[0] + 1.8, d.here[1])).label(f"{gpio_label}\n(Zero W)", fontsize=10)
+SVG_PATH = str(Path(__file__).with_name("schematic.svg"))
 
 
-def draw_divider_section(d, y, gpio_label, section_label, header_label):
-    """PWR_LED / HDD_LED: voltage divider"""
-    d += elm.Label().at((0, y)).label(f"[ {section_label} ]", fontsize=13)
+def draw_pc817_box(d, cy, label="PC817", flip_lr=False):
+    """PC817 を 4 ピンの箱として描画し、ピン座標を返す。
+    flip_lr=False: 左上=Pin1, 左下=Pin2, 右下=Pin3, 右上=Pin4 (Pi→MB 向き)
+    flip_lr=True:  左上=Pin4, 左下=Pin3, 右下=Pin2, 右上=Pin1 (MB→Pi 向き)
+    """
+    bx_l, bx_r = -1.5, 1.5
+    bx_t, bx_b = cy + 1, cy - 1
 
-    # Left: Zero W GPIO
-    d += (gpio_dot := elm.Dot(open=True).at((0, y - 2.5)))
-    d += elm.Label().at((-1.8, y - 2.5)).label(f"{gpio_label}\n(Zero W)", fontsize=10)
+    d += elm.Line().at((bx_l, bx_t)).to((bx_r, bx_t))
+    d += elm.Line().at((bx_r, bx_t)).to((bx_r, bx_b))
+    d += elm.Line().at((bx_r, bx_b)).to((bx_l, bx_b))
+    d += elm.Line().at((bx_l, bx_b)).to((bx_l, bx_t))
+    d += elm.Label().at((0, cy)).label(label, fontsize=10)
 
-    d += elm.Line().right(2).at(gpio_dot.end)
-    d += (junc := elm.Dot())
+    left_top = (bx_l, cy + 0.5)
+    left_bot = (bx_l, cy - 0.5)
+    right_bot = (bx_r, cy - 0.5)
+    right_top = (bx_r, cy + 0.5)
 
-    # Divider: R2 to GND
-    d += elm.Resistor().down(3).at(junc.center).label("3.3kΩ", loc="right", fontsize=10)
-    d += elm.Ground()
+    if not flip_lr:
+        nums = ("1", "2", "3", "4")
+    else:
+        nums = ("4", "3", "2", "1")
 
-    # R1 to MB
-    d += elm.Resistor().right(4).at(junc.center).label("6.8kΩ", loc="top", fontsize=10)
+    d += elm.Label().at((bx_l + 0.3, cy + 0.5)).label(nums[0], fontsize=7, color="gray")
+    d += elm.Label().at((bx_l + 0.3, cy - 0.5)).label(nums[1], fontsize=7, color="gray")
+    d += elm.Label().at((bx_r - 0.3, cy - 0.5)).label(nums[2], fontsize=7, color="gray")
+    d += elm.Label().at((bx_r - 0.3, cy + 0.5)).label(nums[3], fontsize=7, color="gray")
 
-    # Right: Motherboard header
-    d += elm.Dot(open=True)
-    d += elm.Label().at((d.here[0] + 1.8, d.here[1])).label(f"{header_label}\n(MB, 5V)", fontsize=10)
+    return left_top, left_bot, right_bot, right_top, bx_l, bx_r
 
-    d += elm.Label().at((junc.center[0], junc.center[1] + 0.8)).label("≈1.65V", fontsize=9)
+
+def draw_switch_section(d, cy, gpio_label, section_label, btn_label, header_label):
+    """PWR_SW / RST_SW: 左 = Pi(Pin1/Pin2)、右 = MB(Pin4/Pin3)。"""
+    d += elm.Label().at((0, cy + 2.5)).label(f"[ {section_label} ]", fontsize=13)
+    lt, lb, rb, rt, bx_l, bx_r = draw_pc817_box(d, cy, flip_lr=False)
+    # lt=Pin1, lb=Pin2, rb=Pin3, rt=Pin4
+
+    # Pi 側: Pin1 ← 330Ω ← 3.3V
+    d += elm.Line().at(lt).to((bx_l - 1, lt[1]))
+    d += elm.Resistor().at((bx_l - 1, lt[1])).to((bx_l - 4, lt[1])).label("330Ω", loc="top", fontsize=9)
+    d += elm.Line().at((bx_l - 4, lt[1])).to((bx_l - 5, lt[1]))
+    d += elm.Dot(open=True).at((bx_l - 5, lt[1]))
+    d += elm.Label().at((bx_l - 6.5, lt[1])).label("3.3V\n(Zero W)", fontsize=10)
+
+    # Pin2 ← GPIO
+    d += elm.Line().at(lb).to((bx_l - 5, lb[1]))
+    d += elm.Dot(open=True).at((bx_l - 5, lb[1]))
+    d += elm.Label().at((bx_l - 6.5, lb[1])).label(f"{gpio_label}\n(Zero W)", fontsize=10)
+
+    # MB 側: Pin4 → header、物理ボタン並列
+    d += elm.Line().at(rt).to((bx_r + 5, rt[1]))
+    d += elm.Dot(open=True).at((bx_r + 5, rt[1]))
+    d += elm.Label().at((bx_r + 6.5, rt[1])).label(f"{header_label}\n(MB)", fontsize=10)
+    d += elm.Dot().at((bx_r + 3, rt[1]))
+    d += elm.Label().at((bx_r + 3, rt[1] + 0.4)).label(btn_label, fontsize=9)
+
+    btn_x = bx_r + 3
+    d += elm.Line().at((btn_x, rt[1])).to((btn_x, rt[1] - 0.5))
+    d += elm.Switch().at((btn_x, rt[1] - 0.5)).to((btn_x, rt[1] - 2.5))
+
+    pin3_down_x = bx_r + 1.5
+    d += elm.Line().at(rb).to((pin3_down_x, rb[1]))
+    d += elm.Line().at((pin3_down_x, rb[1])).to((pin3_down_x, rt[1] - 3))
+    d += elm.Line().at((pin3_down_x, rt[1] - 3)).to((btn_x, rt[1] - 3))
+    d += elm.Line().at((btn_x, rt[1] - 2.5)).to((btn_x, rt[1] - 3))
+    d += elm.Ground().at((btn_x, rt[1] - 3))
+    d += elm.Label().at((btn_x, rt[1] - 4.0)).label("MB GND", fontsize=8)
+
+
+def _draw_input_pi_side(d, lt, lb, bx_l, gpio_label):
+    """入力系 PC817 の 2 次側(Pi 側)を描画する共通ヘルパー。
+    左上(Pin4) ← Pi 3.3V、左下(Pin3) → GPIO + 10kΩ プルダウン → Pi GND。"""
+    # Pin4(左上) ← Pi 3.3V
+    d += elm.Line().at(lt).to((bx_l - 5, lt[1]))
+    d += elm.Dot(open=True).at((bx_l - 5, lt[1]))
+    d += elm.Label().at((bx_l - 6.5, lt[1])).label("3.3V\n(Zero W)", fontsize=10)
+
+    # Pin3(左下) → GPIO 分岐 + プルダウン 10kΩ → Pi GND
+    d += elm.Line().at(lb).to((bx_l - 5, lb[1]))
+    d += elm.Dot(open=True).at((bx_l - 5, lb[1]))
+    d += elm.Label().at((bx_l - 6.5, lb[1])).label(f"{gpio_label}\n(Zero W)", fontsize=10)
+    d += elm.Dot().at((bx_l - 2, lb[1]))
+    d += elm.Resistor().at((bx_l - 2, lb[1])).to((bx_l - 2, lb[1] - 2)).label("10kΩ", loc="right", fontsize=9)
+    d += elm.Ground().at((bx_l - 2, lb[1] - 2))
+    d += elm.Label().at((bx_l - 2, lb[1] - 3.0)).label("Pi GND", fontsize=8)
+
+
+def draw_input_section(d, cy, gpio_label, section_label, header_label, r_limit="1kΩ"):
+    """PWR_LED / HDD_LED 用: 左 = Pi(Pin4/Pin3), 右 = MB(Pin1/Pin2)。
+    MB 側 LED+(5V) → 1kΩ → Pin1, Pin2 → MB GND で 1 次側を駆動し、
+    マザボ側点灯時に 2 次側が導通して GPIO=HIGH になる。
+    SPEAKER は LOW アクティブ駆動のため draw_speaker_section を使うこと。"""
+    d += elm.Label().at((0, cy + 2.5)).label(f"[ {section_label} ]", fontsize=13)
+    lt, lb, rb, rt, bx_l, bx_r = draw_pc817_box(d, cy, flip_lr=True)
+    # lt=Pin4, lb=Pin3, rb=Pin2, rt=Pin1
+
+    _draw_input_pi_side(d, lt, lb, bx_l, gpio_label)
+
+    # ---- 右 = MB 側 ----
+    # Pin1(右上) ← 制限抵抗 ← header+(5V)
+    d += elm.Line().at(rt).to((bx_r + 1, rt[1]))
+    d += elm.Resistor().at((bx_r + 1, rt[1])).to((bx_r + 4, rt[1])).label(r_limit, loc="top", fontsize=9)
+    d += elm.Line().at((bx_r + 4, rt[1])).to((bx_r + 5, rt[1]))
+    d += elm.Dot(open=True).at((bx_r + 5, rt[1]))
+    d += elm.Label().at((bx_r + 6.5, rt[1])).label(f"{header_label}\n(MB, 5V)", fontsize=10)
+
+    # Pin2(右下) → MB GND
+    d += elm.Line().at(rb).to((bx_r + 2, rb[1]))
+    d += elm.Line().at((bx_r + 2, rb[1])).to((bx_r + 2, rb[1] - 1.2))
+    d += elm.Ground().at((bx_r + 2, rb[1] - 1.2))
+    d += elm.Label().at((bx_r + 2, rb[1] - 2.2)).label("MB GND", fontsize=8)
+
+
+def draw_speaker_section(d, cy, gpio_label, section_label):
+    """Speaker: マザボ側は「IDLE=HIGH(5V), ビープ=LOW駆動」の LOW アクティブ。
+    SPEAKER ヘッダの +5V ピンを 1 次側 LED の電源として使い、SPEAKER+ が
+    LOW に落ちたときだけ SPEAKER 5V → 1kΩ → LED → SPEAKER+(0V) の経路で
+    電流が流れるようにする。これによりビープ時のみ LED 点灯 → 2 次側導通 →
+    GPIO=HIGH となり、他の入力系と同じ「HIGH=アクティブ」論理で扱える。"""
+    d += elm.Label().at((0, cy + 2.5)).label(f"[ {section_label} ]", fontsize=13)
+    lt, lb, rb, rt, bx_l, bx_r = draw_pc817_box(d, cy, flip_lr=True)
+    # lt=Pin4, lb=Pin3, rb=Pin2, rt=Pin1
+
+    _draw_input_pi_side(d, lt, lb, bx_l, gpio_label)
+
+    # ---- 右 = MB 側(SPEAKER ヘッダの 5V ピンを 1 次側電源に使う) ----
+    # Pin1(右上) ← 1kΩ ← SPEAKER 5V
+    d += elm.Line().at(rt).to((bx_r + 1, rt[1]))
+    d += elm.Resistor().at((bx_r + 1, rt[1])).to((bx_r + 4, rt[1])).label("1kΩ", loc="top", fontsize=9)
+    d += elm.Line().at((bx_r + 4, rt[1])).to((bx_r + 5, rt[1]))
+    d += elm.Dot(open=True).at((bx_r + 5, rt[1]))
+    d += elm.Label().at((bx_r + 6.5, rt[1])).label("SPEAKER 5V\n(MB)", fontsize=10)
+
+    # Pin2(右下) → SPEAKER+(MB 信号)
+    d += elm.Line().at(rb).to((bx_r + 5, rb[1]))
+    d += elm.Dot(open=True).at((bx_r + 5, rb[1]))
+    d += elm.Label().at((bx_r + 6.5, rb[1])).label("SPEAKER+\n(MB)", fontsize=10)
 
 
 with schemdraw.Drawing(file=SVG_PATH, show=False) as d:
-    d.config(fontsize=12, unit=3)
+    d.config(fontsize=12, unit=2.5)
 
-    # 1. Power Switch
+    # スイッチ系: Pi → MB
     draw_switch_section(d, 0, "GPIO17", "Power Switch", "Physical PWR BTN", "PWR_SW+")
+    draw_switch_section(d, -8, "GPIO27", "Reset Switch", "Physical RST BTN", "RST_SW+")
 
-    # 2. Reset Switch
-    draw_switch_section(d, -7, "GPIO27", "Reset Switch", "Physical RST BTN", "RST_SW+")
+    # 入力系: MB → Pi
+    draw_input_section(d, -16, "GPIO22", "Power LED (電源状態)", "PWR_LED+")
+    draw_input_section(d, -24, "GPIO23", "HDD LED (ディスクアクセス)", "HDD_LED+")
+    draw_speaker_section(d, -32, "GPIO24", "Speaker (ビープ音)")
 
-    # 3. Power LED (voltage divider)
-    draw_divider_section(d, -14, "GPIO22", "Power LED (電源状態)", "PWR_LED+")
-
-    # 4. HDD LED (voltage divider)
-    draw_divider_section(d, -21, "GPIO23", "HDD LED (ディスクアクセス)", "HDD_LED+")
-
-    # 5. Speaker (10kΩ clamp)
-    d += elm.Label().at((0, -28)).label("[ Speaker (ビープ音) ]", fontsize=13)
-    d += (spk_gpio := elm.Dot(open=True).at((0, -30.5)))
-    d += elm.Label().at((-1.8, -30.5)).label("GPIO24\n(Zero W)", fontsize=10)
-    d += elm.Resistor().right(4).at(spk_gpio.end).label("10kΩ", loc="top", fontsize=10)
-    d += elm.Dot(open=True)
-    d += elm.Label().at((d.here[0] + 1.8, d.here[1])).label("SPEAKER+\n(MB)", fontsize=10)
-
-    # Notes
-    d += elm.Label().at((0, -34)).label(
-        "左 = Raspberry Pi Zero W    右 = マザーボード\n"
-        "GPIO17/27: Hi-Z → LOW to press  |  Pulse: ON=500ms / OFF=5s / Reset=500ms\n"
-        "GPIO22/23: 分圧 5V→1.65V  |  GPIO24: 10kΩクランプ (5V/3.3V両対応)",
-        fontsize=8
+    d += elm.Label().at((0, -37)).label(
+        "全 5 系統を PC817 で完全絶縁。Pi GND と MB GND は基板上・経路上ともに分離。\n"
+        "スイッチ系: GPIO=LOW → LED 点灯 → 2 次側導通 → PWR_SW+ が MB GND へ\n"
+        "入力系: MB 側 LED 点灯 → 1 次側 LED → 2 次側導通 → Pi 3.3V が GPIO へ → GPIO=HIGH\n"
+        "ファーム前提: 全入力系とも pull_up=False / 出力系は active_high=False\n"
+        "(SPEAKER は LOW アクティブ駆動のため 1 次側を SPEAKER 5V ↔ SPEAKER+ に接続)",
+        fontsize=8,
     )
 
-# Add white background
 with open(SVG_PATH, "r") as f:
     svg = f.read()
+
+# viewBox から実際のサイズを読み取り、余白付きで白背景を描画
+m = re.search(r'viewBox="([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+)"', svg)
+if m:
+    vx, vy, vw, vh = map(float, m.groups())
+    pad = 20
+    bg = f'<rect x="{vx - pad}" y="{vy - pad}" width="{vw + pad * 2}" height="{vh + pad * 2}" fill="white"/>'
+else:
+    bg = '<rect width="100%" height="100%" fill="white"/>'
+
 svg = svg.replace("<svg ", '<svg style="background-color:white" ', 1)
 insert_pos = svg.index(">") + 1
-svg = svg[:insert_pos] + '<rect width="100%" height="100%" fill="white"/>' + svg[insert_pos:]
+svg = svg[:insert_pos] + bg + svg[insert_pos:]
 with open(SVG_PATH, "w") as f:
     f.write(svg)
 

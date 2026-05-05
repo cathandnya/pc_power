@@ -13,6 +13,11 @@ PULSE_RESET = 0.5
 # 監視ポーリング間隔（秒）
 MONITOR_INTERVAL = 0.05  # 50ms
 
+# ビープ検知（矩形波）
+BEEP_WINDOW = 0.1            # エッジ集計窓 100ms
+BEEP_EVAL_INTERVAL = 0.1     # 判定周期 100ms（窓と同じにすることで漏れなく集計）
+BEEP_EDGE_THRESHOLD = 20     # 100ms内に20エッジ以上(=100Hz相当の矩形波) で beep 判定
+
 # サーバー設定
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8080
